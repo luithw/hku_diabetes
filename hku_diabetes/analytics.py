@@ -170,7 +170,7 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
         Hba1C, regression, ckd, Creatinine_LP, and cumulative_Hba1C.
 
     Example:
-        >>> from hku_diabetes. import analytics
+        >>> from hku_diabetes import analytics
         >>> from hku_diabetes.importer import import_all
         >>> data = import_all()
         >>> patient_id = 802
@@ -224,7 +224,7 @@ def find_time_range(Creatinine_time: np.ndarray,
 
         Example:
             >>> from matplotlib.dates import date2num
-            >>> from hku_diabetes. import analytics
+            >>> from hku_diabetes import analytics
             >>> from hku_diabetes.importer import import_all
             >>> data = import_all()
             >>> subject_id = 802
@@ -250,7 +250,7 @@ def dropna(data: Dict[str, pd.DataFrame]):
             and Demographics as DataFrames.
 
     Example:
-        >>> from hku_diabetes. import analytics
+        >>> from hku_diabetes import analytics
         >>> from hku_diabetes.importer import import_all
         >>> data = import_all()
         >>> analytics.dropna(data)
@@ -276,7 +276,7 @@ def evaluate_eGFR(data: Dict[str, pd.DataFrame]):
             and Demographics as DataFrames.
 
     Example:
-        >>> from hku_diabetes. import analytics
+        >>> from hku_diabetes import analytics
         >>> from hku_diabetes.importer import import_all
         >>> data = import_all()
         >>> analytics.evaluate_eGFR(data)
@@ -305,7 +305,7 @@ def intersect(data: Dict[str, pd.DataFrame]):
             and Demographics as DataFrames.
 
     Example:
-        >>> from hku_diabetes. import analytics
+        >>> from hku_diabetes import analytics
         >>> from hku_diabetes.importer import import_all
         >>> data = import_all()
         >>> analytics.intersect(data)
@@ -333,7 +333,7 @@ def remove_duplicate(Creatinine: np.ndarray,
             and Demographics as DataFrames.
 
     Example:
-        >>> from hku_diabetes. import analytics
+        >>> from hku_diabetes import analytics
         >>> from hku_diabetes.importer import import_all
         >>> data = import_all()
         >>> analytics.remove_duplicate(data)
