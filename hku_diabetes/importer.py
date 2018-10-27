@@ -11,13 +11,14 @@ from os import listdir, makedirs
 from os.path import exists, join, isfile
 import time
 from typing import Dict
+from typing import Type
 
 import pandas as pd
 
 from .config import DefaultConfig
 
 
-def import_all(config: type = DefaultConfig) -> Dict[str, pd.DataFrame]:
+def import_all(config: Type[DefaultConfig] = DefaultConfig) -> Dict[str, pd.DataFrame]:
     """Imports all resources and returns a dictionary of resources.
 
     It searches for sub-directory in config.raw_data_path and 
@@ -66,7 +67,7 @@ def import_all(config: type = DefaultConfig) -> Dict[str, pd.DataFrame]:
 
 
 def import_resource(resource_name: str,
-                    config: type = DefaultConfig) -> pd.DataFrame:
+                    config: Type[DefaultConfig] = DefaultConfig) -> pd.DataFrame:
     """Imports one particular resource.
 
     This function is a sub-routine called by import_all to import one 
