@@ -88,7 +88,7 @@ data = import_all(config=MyConfig)
 results = analyser.run(data, config=MyConfig)
 ```
 
-For a full list of available configuration options. Please see the documentation.
+For a full list of available configuration options and functions . Please see the [documentation](hku-diabetes.rtfd.io).
 
 ## Support
 For any quires, you can send me an email to luithw@hku.hk.
