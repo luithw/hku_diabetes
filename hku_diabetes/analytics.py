@@ -12,7 +12,6 @@ import time
 from collections import OrderedDict
 from concurrent.futures import ProcessPoolExecutor
 from typing import Dict
-from typing import Tuple
 from typing import Type
 from typing import Union
 
@@ -183,7 +182,8 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
             Hba1C) < config.min_analysis_samples:
         # Too few data points for proper analysis
         return None
-    Creatinine, Hba1C = remove_duplicate(Creatinine, Hba1C)
+    Creatinine = remove_duplicate(Creatinine)
+    Hba1C = remove_duplicate(Hba1C)
     # Low pass filtering of the eGFR as there are too many measurements in some days
     Creatinine_LP = Creatinine.resample(
         config.eGFR_low_pass, on='Datetime').mean().dropna()
@@ -320,8 +320,7 @@ def intersect(data: Dict[str, pd.DataFrame]):
         data[resource_name] = resource.loc[unique_patient_ids]
 
 
-def remove_duplicate(Creatinine: pd.DataFrame,
-                     Hba1C: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray]:
+def remove_duplicate(resource: pd.DataFrame) -> pd.DataFrame:
     """Removes duplicate measurements taken at the same datetime.
 
     For some reasons, more than one entries are recorded at the same time
@@ -330,11 +329,10 @@ def remove_duplicate(Creatinine: pd.DataFrame,
     the first record.
 
     Args:
-        Creatinine: Creatinine DataFrame.
-        Hba1C: Hba1C DataFrame.
+        resource: A DataFrame of the resource to remove duplicate.
 
     Returns:
-        A tuple of filtered Creatinine and Hba1C DataFrame
+        A DataFrame with duplicates removed.
 
     Example:
         >>> from hku_diabetes import analytics
@@ -342,11 +340,8 @@ def remove_duplicate(Creatinine: pd.DataFrame,
         >>> data = import_all()
         >>> patient_id = 802
         >>> Creatinine = data['Creatinine'].loc[[patient_id]]
-        >>> Hba1C = data['Hba1C'].loc[[patient_id]]
-        >>> Creatinine, Hba1C = analytics.remove_duplicate(Creatinine, Hba1C)
+        >>> Creatinine = analytics.remove_duplicate(Creatinine)
     """
-    Creatinine_time = date2num(Creatinine['Datetime'])
-    Hba1C_time = date2num(Hba1C['Datetime'])
-    Creatinine = Creatinine.iloc[[True] + list(np.diff(Creatinine_time) > 0)]
-    Hba1C = Hba1C.iloc[[True] + list(np.diff(Hba1C_time) > 0)]
-    return Creatinine, Hba1C
+    resource_time = date2num(resource['Datetime'])
+    resource = resource.iloc[[True] + list(np.diff(resource_time) > 0)]
+    return resource
