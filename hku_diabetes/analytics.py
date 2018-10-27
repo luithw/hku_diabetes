@@ -1,24 +1,23 @@
 # -*- coding: utf-8 -*-
 """Core data analytics logics.
 """
-from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
+from __future__ import print_function
 
-from concurrent.futures import ProcessPoolExecutor
 import itertools
 import os
 import pickle
 import time
+from concurrent.futures import ProcessPoolExecutor
 from typing import Dict
 from typing import Tuple
-from typing import Union
 from typing import Type
+from typing import Union
 
-from matplotlib.dates import date2num
 import numpy as np
 import pandas as pd
-
+from matplotlib.dates import date2num
 from scipy.interpolate import pchip_interpolate
 from scipy.stats import linregress
 
@@ -46,7 +45,7 @@ class Analyser():
         self.config = config
         self.patient_ids = []
         self.intermediate = {}
-        self.results = {'regression': None, 'ckd': None}
+        self.results = {'regression': pd.DataFrame(), 'ckd': pd.DataFrame()}
 
     def _save(self):
         """Save analytics results to file.

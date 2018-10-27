@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
 """Importer for importing resources from the data directory.
 """
-from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
+from __future__ import print_function
 
-from concurrent.futures import ProcessPoolExecutor
+import time
 from collections import OrderedDict
+from concurrent.futures import ProcessPoolExecutor
 from os import listdir, makedirs
 from os.path import exists, join, isfile
-import time
 from typing import Dict
 from typing import Type
 

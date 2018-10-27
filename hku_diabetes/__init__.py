@@ -2,10 +2,7 @@ from __future__ import absolute_import
 from . import analytics
 from . import importer
 from . import config
-
-# Globally-importable utils.
-from .importer import import_all
-from .analytics import Analyser
+from . import plot
 
 __version__ = '0.0.2'
 name = "hku_diabetes"
