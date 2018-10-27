@@ -11,6 +11,7 @@ from concurrent.futures import ProcessPoolExecutor
 from os import listdir, makedirs
 from os.path import exists, join, isfile
 from typing import Dict
+from typing import List
 from typing import Type
 
 import pandas as pd
@@ -109,7 +110,7 @@ def import_resource(resource_name: str,
     return resource
 
 
-def _read_html_file(filepath: str) -> pd.DataFrame:
+def _read_html_file(filepath: str) -> List[pd.DataFrame]:
     """Helper function to read a single HTML file,
     called by ProcessPoolExecutor.
     """

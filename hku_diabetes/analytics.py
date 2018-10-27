@@ -26,7 +26,7 @@ from .config import DefaultConfig
 from .config import TestConfig
 
 
-class Analyser():
+class Analyser:
     """Execute core analytics logic.
 
     This class implements the main execution sequence of the HKU diabetes
@@ -330,14 +330,20 @@ def remove_duplicate(Creatinine: pd.DataFrame,
     the first record.
 
     Args:
-        data: A dictionary at least containing Creatinine, Hb1aC,
-            and Demographics as DataFrames.
+        Creatinine: Creatinine DataFrame.
+        Hba1C: Hba1C DataFrame.
+
+    Returns:
+        A tuple of filtered Creatinine and Hba1C DataFrame
 
     Example:
         >>> from hku_diabetes import analytics
         >>> from hku_diabetes.importer import import_all
         >>> data = import_all()
-        >>> analytics.remove_duplicate(data)
+        >>> patient_id = 802
+        >>> Creatinine = data['Creatinine'].loc[[patient_id]]
+        >>> Hba1C = data['Hba1C'].loc[[patient_id]]
+        >>> Creatinine, Hba1C = analytics.remove_duplicate(Creatinine, Hba1C)
     """
     Creatinine_time = date2num(Creatinine['Datetime'])
     Hba1C_time = date2num(Hba1C['Datetime'])
