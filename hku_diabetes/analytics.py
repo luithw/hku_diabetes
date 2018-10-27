@@ -1,23 +1,23 @@
 # -*- coding: utf-8 -*-
 """Core data analytics logics.
 """
-from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
+from __future__ import print_function
 
-from concurrent.futures import ProcessPoolExecutor
 import itertools
 import os
 import pickle
 import time
+from concurrent.futures import ProcessPoolExecutor
 from typing import Dict
 from typing import Tuple
+from typing import Type
 from typing import Union
 
-from matplotlib.dates import date2num
 import numpy as np
 import pandas as pd
-
+from matplotlib.dates import date2num
 from scipy.interpolate import pchip_interpolate
 from scipy.stats import linregress
 
@@ -41,11 +41,11 @@ class Analyser():
         results: A dictionary containing regresssion results and ckd values.
     """
 
-    def __init__(self, *, config: type = DefaultConfig):
+    def __init__(self, *, config: Type[DefaultConfig] = DefaultConfig):
         self.config = config
         self.patient_ids = []
         self.intermediate = {}
-        self.results = {'regression': None, 'ckd': None}
+        self.results = {'regression': pd.DataFrame(), 'ckd': pd.DataFrame()}
 
     def _save(self):
         """Save analytics results to file.
@@ -148,7 +148,7 @@ class Analyser():
 
 def analyse_subject(data: Dict[str, pd.DataFrame],
                     patient_id: int,
-                    config: type = DefaultConfig) -> Union[None, dict]:
+                    config: Type[DefaultConfig] = DefaultConfig) -> Union[None, dict]:
     """Compute the regression result and ckd values for one subject.
 
     This function takes the data of one subject and compute its corresponding
@@ -211,7 +211,7 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
 
 def find_time_range(Creatinine_time: np.ndarray,
                     Hba1C_time: np.ndarray,
-                    config: type = DefaultConfig) -> np.ndarray:
+                    config: Type[DefaultConfig] = DefaultConfig) -> np.ndarray:
     """Finds the longest possible overlapping time range between Creatinine and Hba1C.
 
         Args:
@@ -227,7 +227,7 @@ def find_time_range(Creatinine_time: np.ndarray,
             >>> from hku_diabetes import analytics
             >>> from hku_diabetes.importer import import_all
             >>> data = import_all()
-            >>> subject_id = 802
+            >>> patient_id = 802
             >>> Creatinine = data['Creatinine'].loc[[patient_id]]
             >>> Hba1C = data['Hba1C'].loc[[patient_id]]
             >>> Creatinine_time = date2num(Creatinine['Datetime'])
@@ -319,8 +319,8 @@ def intersect(data: Dict[str, pd.DataFrame]):
         data[resource_name] = resource.loc[unique_patient_ids]
 
 
-def remove_duplicate(Creatinine: np.ndarray,
-                     Hba1C: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+def remove_duplicate(Creatinine: pd.DataFrame,
+                     Hba1C: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray]:
     """Removes duplicate measurements taken at the same datetime.
 
     For some reasons, more than one entries are recorded at the same time
