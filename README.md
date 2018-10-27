@@ -94,7 +94,7 @@ data = import_all(config=MyConfig)
 results = analyser.run(data, config=MyConfig)
 ```
 
-For a full list of available configuration options and functions. Please see the [documentation](https://hku-diabetes.readthedocs.io/en/latest/hku_diabetes.html).
+For a full list of available configuration options and functions, please see the [documentation](https://hku-diabetes.readthedocs.io/en/latest/hku_diabetes.html).
 
 ## Support
 For any quires, you can send me an email to luithw@hku.hk.
