@@ -13,7 +13,7 @@ and is distributed under the MIT license.
 """
 
 setup(name='hku_diabetes',
-      version='0.0.1',
+      version='0.0.2',
       description='HKU Diabetes Data Anlytics',
       long_description=long_description,
       author='Tim Lui',
@@ -24,7 +24,7 @@ setup(name='hku_diabetes',
       install_requires=['lxml>=4.2.5',
                         'matplotlib>=3.0.0',
                         'numpy>=1.15.2',
-                        'pandas>=0.23.4'                        
+                        'pandas>=0.23.4',                        
                         'scipy>=1.1.0',
                         'six>=1.9.0',
                         'xlrd>=1.1.0'
