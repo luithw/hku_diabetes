@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Core data analytics logics.
+"""Core data analytics logic.
 """
 from __future__ import absolute_import
 from __future__ import division
@@ -9,6 +9,7 @@ import itertools
 import os
 import pickle
 import time
+from collections import OrderedDict
 from concurrent.futures import ProcessPoolExecutor
 from typing import Dict
 from typing import Tuple
@@ -26,7 +27,7 @@ from .config import TestConfig
 
 
 class Analyser():
-    """Core analytics logic executer.
+    """Execute core analytics logic.
 
     This class implements the main execution sequence of the HKU diabetes
     regression analysis. It saves the results of the regression and CKD
@@ -37,8 +38,8 @@ class Analyser():
 
     Attributes:
         patient_ids: A list of valid patient IDs analysed.
-        intermeidate: A dictionary of all objets in intermediate steps.
-        results: A dictionary containing regresssion results and ckd values.
+        intermediate: A dictionary of all objects in intermediate steps.
+        results: A dictionary containing regression results and ckd values.
     """
 
     def __init__(self, *, config: Type[DefaultConfig] = DefaultConfig):
@@ -66,14 +67,14 @@ class Analyser():
     def load(self) -> Dict[str, pd.DataFrame]:
         """Load analytics results from file.
 
-        Call this method to load the previous analytics resutls. Calling
+        Call this method to load the previous analytics results. Calling
         script should catch FileNotFoundError and call the run method.
 
         Raises:
             FileNotFoundError: No results files are found in config.results_path.
 
         Returns:
-            A dictionary continaing results for regression and ckd as
+            A dictionary containing results for regression and ckd as
             DataFrame.
 
         Example:
@@ -104,7 +105,7 @@ class Analyser():
     def run(self, data: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
         """Execute the main date analytics sequence.
 
-        Call this method to execute the actual data anlytics.
+        Call this method to execute the actual data analytics.
         All results are saved in path specified by config.results_path.
 
         Args:
@@ -197,7 +198,7 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
                                          Creatinine_LP_time)
     inverse_regression = np.poly1d(
         np.polyfit(Creatinine_LP['eGFR'], cumulative_Hba1C, 1))
-    intermediate = {}
+    intermediate = OrderedDict()
     intermediate['patient_id'] = patient_id
     intermediate['Creatinine'] = Creatinine
     intermediate['Hba1C'] = Hba1C

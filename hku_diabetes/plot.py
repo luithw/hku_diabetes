@@ -91,7 +91,7 @@ def plot_one(analyser: Analyser, mode: Text):
 
 def __plot_regression_distributions(analyser: Analyser):
     pdf = PdfPages(
-        "%s/regression_distributions.pdf" % (analyser.config.plot_path))
+        "%s/regression_distributions.pdf" % analyser.config.plot_path)
     for column in analyser.results['regression']:
         x = analyser.results['regression'][column]
         n = len(x)

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """Script for memory and execution time profiling."""
+import tracemalloc
 from cProfile import Profile
 from pstats import Stats
-import tracemalloc
 
 from hku_diabetes.analytics import Analyser
 from hku_diabetes.config import TestConfig
@@ -11,9 +11,11 @@ from hku_diabetes.plot import plot_all
 
 TOP_STATS = 20
 
+
 class ProfilingConfig(TestConfig):
     test_samples = 100
     plot_samples = 100
+
 
 def test():
     """Testing sequence for profiling"""
@@ -21,6 +23,7 @@ def test():
     data = import_all(config=ProfilingConfig)
     analyser.load()
     plot_all(analyser)
+
 
 def main():
     """Main sequence"""
@@ -48,7 +51,6 @@ def main():
     print("\n===Top Memory Consumer===\n")              
     top = memory_stats[0]
     print('\n'.join(top.traceback.format()))
-
 
 
 if __name__ == '__main__':

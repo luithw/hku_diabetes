@@ -1,5 +1,5 @@
-from setuptools import setup
 from setuptools import find_packages
+from setuptools import setup
 
 long_description = """
 hku_diabetes is a data analytics module tailored made for

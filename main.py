@@ -8,6 +8,7 @@ from hku_diabetes.config import RunConfig
 from hku_diabetes.importer import import_all
 from hku_diabetes.plot import plot_all
 
+
 def main():
     """Main sequence to analyse data."""
     if "run" in sys.argv:

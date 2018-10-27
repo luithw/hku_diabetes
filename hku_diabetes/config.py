@@ -3,7 +3,7 @@
 """
 
 
-class DefaultConfig():
+class DefaultConfig:
     """Default configuration used by all module classes and functions.
 
     This is the default configuration class defining all default parameters.

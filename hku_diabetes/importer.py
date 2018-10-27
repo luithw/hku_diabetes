@@ -54,14 +54,14 @@ def import_all(config: Type[DefaultConfig] = DefaultConfig) -> Dict[str, pd.Data
     # Special routine for Demographic data
     try:
         data['Demographic'] = pd.read_csv(
-            "%s/Demographic.csv" % (config.processed_data_path), index_col=0)
+            "%s/Demographic.csv" % config.processed_data_path, index_col=0)
     except IOError:
         data['Demographic'] = pd.read_excel(
-            "%s/total 7307_DOB_DOD_SEX.xlsx" % (config.raw_data_path),
+            "%s/total 7307_DOB_DOD_SEX.xlsx" % config.raw_data_path,
             index_col=1,
             header=0)
         data['Demographic'].to_csv(
-            "%s/Demographic.csv" % (config.processed_data_path))
+            "%s/Demographic.csv" % config.processed_data_path)
     _cleaning(data)
     return data
 
