@@ -2,7 +2,7 @@ HKU Diabetes Data Analytics
 ===========================
 `hku_diabetes` is a data analytics module tailored made for analysing diabetes clinical data collected at Queen Mary Hospital of the Hong Kong University.
 
-hku_diabetes is compatible with: __Python 3.6-3.7__.
+`hku_diabetes` is compatible with: __Python 3.6-3.7__.
 
 ## Installation
 If you don't have Python installed already, you could download __Python 3.7__ directly [here](https://www.python.org/downloads/release/python-370/).
