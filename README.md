@@ -13,10 +13,16 @@ You can obtain `hku_diabetes` either by download a zip by clicking the 'Clone or
 git clone https://github.com/luithw/hku_diabetes.git
 ```
 
-You can install all the required packages by running `pip3`
+You then need to install all the required packages by `pip`.
 
 ```sh
-pip3 install -r requirements.txt
+pip install -r requirements.txt
+```
+
+Alternatively, if you just want to use the package, you can install the package itself directly with `pip`.
+
+```sh
+pip install hku_diabetes
 ```
 
 ## Perform data analytics
@@ -25,7 +31,7 @@ The package expects to find the data under a directory (folder) named `raw_data`
 Once you have put the data in the working directory. First test everything is OK by executing the following command in your terminal. It execute all the functions with test configuration on a small number of data to make sure there is no error.
 
 ```sh
-python3 main.py
+python main.py
 ```
 
 The first time it is executed, it loads the raw data in inefficient html format and saves them as CSV in the `processed_data` directory, so that it loads faster the next time. 
@@ -33,7 +39,7 @@ The first time it is executed, it loads the raw data in inefficient html format 
 If the above command is executed without error. Simply add `run` after the previous command. It will then execute on the entire dataset.
 
 ```sh
-python3 main.py run
+python main.py run
 ```
 
 ## Use the package in your script
