@@ -21,6 +21,9 @@ def get_all_trade_names(config: type = DefaultConfig) -> pd.DataFrame:
     It then calls get_one_trade_names recurisvely for each generic name, and
     concatenate all the trade names into a single DataFrame.
 
+    Args:
+        config: Configuration class, default to DefaultConfig.
+
     Returns:
         A DataFrame of drug trade names.
 
