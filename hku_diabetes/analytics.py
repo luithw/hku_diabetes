@@ -1,23 +1,23 @@
 # -*- coding: utf-8 -*-
-"""Core data analytics logics.
+"""Core data analytics logic.
 """
-from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
+from __future__ import print_function
 
-from concurrent.futures import ProcessPoolExecutor
 import itertools
 import os
 import pickle
 import time
+from collections import OrderedDict
+from concurrent.futures import ProcessPoolExecutor
 from typing import Dict
-from typing import Tuple
+from typing import Type
 from typing import Union
 
-from matplotlib.dates import date2num
 import numpy as np
 import pandas as pd
-
+from matplotlib.dates import date2num
 from scipy.interpolate import pchip_interpolate
 from scipy.stats import linregress
 
@@ -25,8 +25,8 @@ from .config import DefaultConfig
 from .config import TestConfig
 
 
-class Analyser():
-    """Core analytics logic executer.
+class Analyser:
+    """Execute core analytics logic.
 
     This class implements the main execution sequence of the HKU diabetes
     regression analysis. It saves the results of the regression and CKD
@@ -37,15 +37,15 @@ class Analyser():
 
     Attributes:
         patient_ids: A list of valid patient IDs analysed.
-        intermeidate: A dictionary of all objets in intermediate steps.
-        results: A dictionary containing regresssion results and ckd values.
+        intermediate: A dictionary of all objects in intermediate steps.
+        results: A dictionary containing regression results and ckd values.
     """
 
-    def __init__(self, *, config: type = DefaultConfig):
+    def __init__(self, *, config: Type[DefaultConfig] = DefaultConfig):
         self.config = config
         self.patient_ids = []
         self.intermediate = {}
-        self.results = {'regression': None, 'ckd': None}
+        self.results = {'regression': pd.DataFrame(), 'ckd': pd.DataFrame()}
 
     def _save(self):
         """Save analytics results to file.
@@ -66,14 +66,14 @@ class Analyser():
     def load(self) -> Dict[str, pd.DataFrame]:
         """Load analytics results from file.
 
-        Call this method to load the previous analytics resutls. Calling
+        Call this method to load the previous analytics results. Calling
         script should catch FileNotFoundError and call the run method.
 
         Raises:
             FileNotFoundError: No results files are found in config.results_path.
 
         Returns:
-            A dictionary continaing results for regression and ckd as
+            A dictionary containing results for regression and ckd as
             DataFrame.
 
         Example:
@@ -104,7 +104,7 @@ class Analyser():
     def run(self, data: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
         """Execute the main date analytics sequence.
 
-        Call this method to execute the actual data anlytics.
+        Call this method to execute the actual data analytics.
         All results are saved in path specified by config.results_path.
 
         Args:
@@ -148,7 +148,7 @@ class Analyser():
 
 def analyse_subject(data: Dict[str, pd.DataFrame],
                     patient_id: int,
-                    config: type = DefaultConfig) -> Union[None, dict]:
+                    config: Type[DefaultConfig] = DefaultConfig) -> Union[None, dict]:
     """Compute the regression result and ckd values for one subject.
 
     This function takes the data of one subject and compute its corresponding
@@ -170,7 +170,7 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
         Hba1C, regression, ckd, Creatinine_LP, and cumulative_Hba1C.
 
     Example:
-        >>> from hku_diabetes. import analytics
+        >>> from hku_diabetes import analytics
         >>> from hku_diabetes.importer import import_all
         >>> data = import_all()
         >>> patient_id = 802
@@ -182,7 +182,8 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
             Hba1C) < config.min_analysis_samples:
         # Too few data points for proper analysis
         return None
-    Creatinine, Hba1C = remove_duplicate(Creatinine, Hba1C)
+    Creatinine = remove_duplicate(Creatinine)
+    Hba1C = remove_duplicate(Hba1C)
     # Low pass filtering of the eGFR as there are too many measurements in some days
     Creatinine_LP = Creatinine.resample(
         config.eGFR_low_pass, on='Datetime').mean().dropna()
@@ -197,7 +198,7 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
                                          Creatinine_LP_time)
     inverse_regression = np.poly1d(
         np.polyfit(Creatinine_LP['eGFR'], cumulative_Hba1C, 1))
-    intermediate = {}
+    intermediate = OrderedDict()
     intermediate['patient_id'] = patient_id
     intermediate['Creatinine'] = Creatinine
     intermediate['Hba1C'] = Hba1C
@@ -211,7 +212,7 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
 
 def find_time_range(Creatinine_time: np.ndarray,
                     Hba1C_time: np.ndarray,
-                    config: type = DefaultConfig) -> np.ndarray:
+                    config: Type[DefaultConfig] = DefaultConfig) -> np.ndarray:
     """Finds the longest possible overlapping time range between Creatinine and Hba1C.
 
         Args:
@@ -224,10 +225,10 @@ def find_time_range(Creatinine_time: np.ndarray,
 
         Example:
             >>> from matplotlib.dates import date2num
-            >>> from hku_diabetes. import analytics
+            >>> from hku_diabetes import analytics
             >>> from hku_diabetes.importer import import_all
             >>> data = import_all()
-            >>> subject_id = 802
+            >>> patient_id = 802
             >>> Creatinine = data['Creatinine'].loc[[patient_id]]
             >>> Hba1C = data['Hba1C'].loc[[patient_id]]
             >>> Creatinine_time = date2num(Creatinine['Datetime'])
@@ -250,7 +251,7 @@ def dropna(data: Dict[str, pd.DataFrame]):
             and Demographics as DataFrames.
 
     Example:
-        >>> from hku_diabetes. import analytics
+        >>> from hku_diabetes import analytics
         >>> from hku_diabetes.importer import import_all
         >>> data = import_all()
         >>> analytics.dropna(data)
@@ -276,7 +277,7 @@ def evaluate_eGFR(data: Dict[str, pd.DataFrame]):
             and Demographics as DataFrames.
 
     Example:
-        >>> from hku_diabetes. import analytics
+        >>> from hku_diabetes import analytics
         >>> from hku_diabetes.importer import import_all
         >>> data = import_all()
         >>> analytics.evaluate_eGFR(data)
@@ -305,7 +306,7 @@ def intersect(data: Dict[str, pd.DataFrame]):
             and Demographics as DataFrames.
 
     Example:
-        >>> from hku_diabetes. import analytics
+        >>> from hku_diabetes import analytics
         >>> from hku_diabetes.importer import import_all
         >>> data = import_all()
         >>> analytics.intersect(data)
@@ -319,8 +320,7 @@ def intersect(data: Dict[str, pd.DataFrame]):
         data[resource_name] = resource.loc[unique_patient_ids]
 
 
-def remove_duplicate(Creatinine: np.ndarray,
-                     Hba1C: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+def remove_duplicate(resource: pd.DataFrame) -> pd.DataFrame:
     """Removes duplicate measurements taken at the same datetime.
 
     For some reasons, more than one entries are recorded at the same time
@@ -329,17 +329,19 @@ def remove_duplicate(Creatinine: np.ndarray,
     the first record.
 
     Args:
-        data: A dictionary at least containing Creatinine, Hb1aC,
-            and Demographics as DataFrames.
+        resource: A DataFrame of the resource to remove duplicate.
+
+    Returns:
+        A DataFrame with duplicates removed.
 
     Example:
-        >>> from hku_diabetes. import analytics
+        >>> from hku_diabetes import analytics
         >>> from hku_diabetes.importer import import_all
         >>> data = import_all()
-        >>> analytics.remove_duplicate(data)
+        >>> patient_id = 802
+        >>> Creatinine = data['Creatinine'].loc[[patient_id]]
+        >>> Creatinine = analytics.remove_duplicate(Creatinine)
     """
-    Creatinine_time = date2num(Creatinine['Datetime'])
-    Hba1C_time = date2num(Hba1C['Datetime'])
-    Creatinine = Creatinine.iloc[[True] + list(np.diff(Creatinine_time) > 0)]
-    Hba1C = Hba1C.iloc[[True] + list(np.diff(Hba1C_time) > 0)]
-    return Creatinine, Hba1C
+    resource_time = date2num(resource['Datetime'])
+    resource = resource.iloc[[True] + list(np.diff(resource_time) > 0)]
+    return resource

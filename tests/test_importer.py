@@ -4,8 +4,8 @@ import os
 
 import pytest
 
-from hku_diabetes.importer import import_resource
 from hku_diabetes.config import TestConfig
+from hku_diabetes.importer import import_resource
 
 RESOURCE_SHAPES = {
     'Creatinine': (314898, 10),

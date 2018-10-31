@@ -1,22 +1,23 @@
 # -*- coding: utf-8 -*-
 """Data and results visualisation
 """
-from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
+from __future__ import print_function
 
-from decimal import Decimal
 import os
 import time
 import warnings
+from decimal import Decimal
+from typing import Text
 
 import matplotlib
 import numpy as np
-from typing import Text
 
-matplotlib.use('Agg')  #Need to execute this before importing plt
+matplotlib.use('Agg')  # Need to execute this before importing plt
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib.dates import date2num
 from scipy.stats import ttest_1samp
 from scipy.interpolate import pchip_interpolate
 
@@ -90,7 +91,7 @@ def plot_one(analyser: Analyser, mode: Text):
 
 def __plot_regression_distributions(analyser: Analyser):
     pdf = PdfPages(
-        "%s/regression_distributions.pdf" % (analyser.config.plot_path))
+        "%s/regression_distributions.pdf" % analyser.config.plot_path)
     for column in analyser.results['regression']:
         x = analyser.results['regression'][column]
         n = len(x)
@@ -118,7 +119,7 @@ def __plot_regression_distributions(analyser: Analyser):
 
 
 def _plot_ckd_distributions(analyser: Analyser):
-    pdf = PdfPages("%s/ckd_distributions.pdf" % (analyser.config.plot_path))
+    pdf = PdfPages("%s/ckd_distributions.pdf" % analyser.config.plot_path)
     for column in analyser.results['ckd']:
         x = analyser.results['ckd'][column]
         n = len(x)
@@ -200,8 +201,8 @@ def _plot_interpolated(analyser: Analyser, index: int):
     patient_id = analyser.intermediate[index]['patient_id']
     Creatinine = analyser.intermediate[index]['Creatinine']
     Hba1C = analyser.intermediate[index]['Hba1C']
-    Creatinine_x = matplotlib.dates.date2num(Creatinine['Datetime'])
-    Hba1C_x = matplotlib.dates.date2num(Hba1C['Datetime'])
+    Creatinine_x = date2num(Creatinine['Datetime'])
+    Hba1C_x = date2num(Hba1C['Datetime'])
     time_range = find_time_range(Creatinine_x, Hba1C_x, analyser.config)
     fig.suptitle(patient_id)
     ax1 = plt.gca()
@@ -238,8 +239,8 @@ def _plot_cumulative(analyser: Analyser, index: int):
     patient_id = analyser.intermediate[index]['patient_id']
     Creatinine = analyser.intermediate[index]['Creatinine']
     Hba1C = analyser.intermediate[index]['Hba1C']
-    Creatinine_x = matplotlib.dates.date2num(Creatinine['Datetime'])
-    Hba1C_x = matplotlib.dates.date2num(Hba1C['Datetime'])
+    Creatinine_x = date2num(Creatinine['Datetime'])
+    Hba1C_x = date2num(Hba1C['Datetime'])
     time_range = find_time_range(Creatinine_x, Hba1C_x, analyser.config)
     fig.suptitle(patient_id)
     ax1 = plt.gca()

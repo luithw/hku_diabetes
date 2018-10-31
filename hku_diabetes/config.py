@@ -3,7 +3,7 @@
 """
 
 
-class DefaultConfig():
+class DefaultConfig:
     """Default configuration used by all module classes and functions.
 
     This is the default configuration class defining all default parameters.
@@ -23,6 +23,8 @@ class DefaultConfig():
     """The period of eGFR low pass filter. All measurements within the same
         period are averaged to one measurement.
     """
+    test_samples = 10
+    """The number of samples analysed by the analytics module."""
 
     # Importer
     data_file_extensions = ("LIS.xls", "DRG.xls", "DX.xls", "PX.xls")

@@ -1,23 +1,25 @@
 # -*- coding: utf-8 -*-
 """Importer for importing resources from the data directory.
 """
-from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
+from __future__ import print_function
 
-from concurrent.futures import ProcessPoolExecutor
+import time
 from collections import OrderedDict
+from concurrent.futures import ProcessPoolExecutor
 from os import listdir, makedirs
 from os.path import exists, join, isfile
-import time
 from typing import Dict
+from typing import List
+from typing import Type
 
 import pandas as pd
 
 from .config import DefaultConfig
 
 
-def import_all(config: type = DefaultConfig) -> Dict[str, pd.DataFrame]:
+def import_all(config: Type[DefaultConfig] = DefaultConfig) -> Dict[str, pd.DataFrame]:
     """Imports all resources and returns a dictionary of resources.
 
     It searches for sub-directory in config.raw_data_path and 
@@ -53,20 +55,20 @@ def import_all(config: type = DefaultConfig) -> Dict[str, pd.DataFrame]:
     # Special routine for Demographic data
     try:
         data['Demographic'] = pd.read_csv(
-            "%s/Demographic.csv" % (config.processed_data_path), index_col=0)
+            "%s/Demographic.csv" % config.processed_data_path, index_col=0)
     except IOError:
         data['Demographic'] = pd.read_excel(
-            "%s/total 7307_DOB_DOD_SEX.xlsx" % (config.raw_data_path),
+            "%s/total 7307_DOB_DOD_SEX.xlsx" % config.raw_data_path,
             index_col=1,
             header=0)
         data['Demographic'].to_csv(
-            "%s/Demographic.csv" % (config.processed_data_path))
+            "%s/Demographic.csv" % config.processed_data_path)
     _cleaning(data)
     return data
 
 
 def import_resource(resource_name: str,
-                    config: type = DefaultConfig) -> pd.DataFrame:
+                    config: Type[DefaultConfig] = DefaultConfig) -> pd.DataFrame:
     """Imports one particular resource.
 
     This function is a sub-routine called by import_all to import one 
@@ -108,7 +110,7 @@ def import_resource(resource_name: str,
     return resource
 
 
-def _read_html_file(filepath: str) -> pd.DataFrame:
+def _read_html_file(filepath: str) -> List[pd.DataFrame]:
     """Helper function to read a single HTML file,
     called by ProcessPoolExecutor.
     """

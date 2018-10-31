@@ -1,5 +1,5 @@
-from setuptools import setup
 from setuptools import find_packages
+from setuptools import setup
 
 long_description = """
 hku_diabetes is a data analytics module tailored made for
@@ -8,7 +8,7 @@ of the Hong Kong University.
 
 Read the documentation at: 
 
-hku_diabetes supports python 3.6-3.7
+hku_diabetes supports python 3.5-3.7
 and is distributed under the MIT license.
 """
 
@@ -35,7 +35,7 @@ setup(name='hku_diabetes',
           'Development Status :: 3 - Alpha',
           'Intended Audience :: Science/Research',
           'License :: OSI Approved :: MIT License',
-          'Programming Language :: Python :: 3.6',
+          'Programming Language :: Python :: 3.5',
           'Topic :: Software Development :: Libraries',
           'Topic :: Software Development :: Libraries :: Python Modules'
       ],

@@ -5,9 +5,9 @@ import shutil
 
 import pytest
 
-from hku_diabetes.importer import import_all
 from hku_diabetes.analytics import Analyser
 from hku_diabetes.config import TestConfig
+from hku_diabetes.importer import import_all
 from hku_diabetes.plot import plot_all
 
 
@@ -21,6 +21,7 @@ def test_file_not_found():
         assert not results['regression'].empty
         assert not results['ckd'].empty
 
+
 def test_analytics():
     """Test all the results and plots are generated."""
     if os.path.exists(TestConfig.results_path):
@@ -30,8 +31,8 @@ def test_analytics():
     results = analyser.run(data)
     assert not results['regression'].empty
     assert not results['ckd'].empty
-    assert os.path.exists("%s/regression.csv" % (TestConfig.results_path))
-    assert os.path.exists("%s/ckd.csv" % (TestConfig.results_path))
+    assert os.path.exists("%s/regression.csv" % TestConfig.results_path)
+    assert os.path.exists("%s/ckd.csv" % TestConfig.results_path)
 
 
 def test_reload_and_plot():
@@ -45,7 +46,7 @@ def test_reload_and_plot():
     plot_all(analyser)
     for mode in TestConfig.plot_modes:
         assert os.path.exists("%s/%s.pdf" % (TestConfig.plot_path, mode))
-    assert os.path.exists("%s/ckd_distributions.pdf" % (TestConfig.plot_path))
+    assert os.path.exists("%s/ckd_distributions.pdf" % TestConfig.plot_path)
 
 
 if __name__ == '__main__':
