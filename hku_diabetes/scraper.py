@@ -32,13 +32,13 @@ def get_all_trade_names(config: type = DefaultConfig) -> pd.DataFrame:
     """
     try:
         trade_names = pd.read_csv(
-            "%s/drug_trade_names.csv" % TestConfig.processed_data_path,
+            "%s/drug_trade_names.csv" % config.processed_data_path,
             index_col=0)
     except IOError:
         if not exists(config.processed_data_path):
             makedirs(config.processed_data_path)
         generic_names = pd.read_csv(
-            "%s/drug_generic_names.csv" % TestConfig.raw_data_path)
+            "%s/drug_generic_names.csv" % config.raw_data_path)
         if config is TestConfig:
             generic_names = generic_names.iloc[:, :2]
         trade_names_list = []
@@ -54,7 +54,7 @@ def get_all_trade_names(config: type = DefaultConfig) -> pd.DataFrame:
         trade_names = pd.concat(trade_names_list)
         trade_names.set_index('generic_name', inplace=True)
         trade_names.to_csv(
-            "%s/drug_trade_names.csv" % TestConfig.processed_data_path)
+            "%s/drug_trade_names.csv" % config.processed_data_path)
         print("Obtained all drug trade names.")
     return trade_names
 
