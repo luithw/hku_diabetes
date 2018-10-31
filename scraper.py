@@ -11,7 +11,5 @@ if __name__ == '__main__':
     if 'run' in sys.argv:
         Config = RunConfig
     else:
-        Config = TestConfig    
+        Config = TestConfig
     trade_names = get_all_trade_names(Config)
-
-
