@@ -26,6 +26,12 @@ class DefaultConfig:
     test_samples = 10
     """The number of samples analysed by the analytics module."""
 
+    filter_by_starting_eGFR = True
+    """All patients with starting eGFR less than starting_eGFR are removed"""
+
+    starting_eGFR = 60
+    """The starting eGFR of analysis"""
+
     # Importer
     data_file_extensions = ("LIS.xls", "DRG.xls", "DX.xls", "PX.xls")
     """The file name ending and extension of data files that has actual data."""

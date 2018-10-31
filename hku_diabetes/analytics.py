@@ -118,6 +118,7 @@ class Analyser:
         Example:
             >>> from hku_diabetes.analytics import Analyser
             >>> from hku_diabetes.importer import import_all
+            >>> analytics.evaluate_eGFR(data)
             >>> analyser = Analyser()
             >>> data = import_all()
             >>> results = analyser.run(data)
@@ -182,8 +183,18 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
             Hba1C) < config.min_analysis_samples:
         # Too few data points for proper analysis
         return None
+
+    if (config.filter_by_starting_eGFR and 
+        Creatinine.iloc[0]['eGFR']<config.starting_eGFR):
+        # Remove the subject from analysis if the starting eGFR is too small.
+        return None
+
     Creatinine = remove_duplicate(Creatinine)
     Hba1C = remove_duplicate(Hba1C)
+    if config.filter_by_starting_eGFR:
+        first_valid_eGFR = (Creatinine['eGFR'] > config.starting_eGFR).tolist().index(True)
+        Creatinine = Creatinine.iloc[first_valid_eGFR:]
+    Creatinine, Hba1C 
     # Low pass filtering of the eGFR as there are too many measurements in some days
     Creatinine_LP = Creatinine.resample(
         config.eGFR_low_pass, on='Datetime').mean().dropna()
@@ -213,15 +224,15 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
 def find_time_range(Creatinine_time: np.ndarray,
                     Hba1C_time: np.ndarray,
                     config: Type[DefaultConfig] = DefaultConfig) -> np.ndarray:
-    """Finds the longest possible overlapping time range between Creatinine and Hba1C.
+    """Finds the appropriate time range between Creatinine and Hba1C.
 
         Args:
             Creatinine_time: Array of Creatinine datetime as Matplotlib dates.
-            Hba1C_time: Array of Hba!C datetime as Matplotlib dates.
+            Hba1C_time: Array of Hba1C datetime as Matplotlib dates.
             config: Configuration class, default to DefaultConfig.
 
         Returns:
-            An array of longest possible overlapping datetime as Matplotlib dates.
+            An array of datetime as Matplotlib dates.
 
         Example:
             >>> from matplotlib.dates import date2num
