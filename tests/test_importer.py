@@ -26,7 +26,7 @@ def test_import_raw():
         (TestConfig.processed_data_path, TEST_RESOURCE)
     if os.path.exists(resource_csv):
         os.remove(resource_csv)
-    resource = import_resource(TEST_RESOURCE)
+    resource = import_resource(TEST_RESOURCE, config=TestConfig)
     assert resource.shape == RESOURCE_SHAPES[TEST_RESOURCE]
     assert os.path.exists(
         "%s/%s.csv" % (TestConfig.processed_data_path, TEST_RESOURCE))
