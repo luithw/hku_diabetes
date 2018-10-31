@@ -8,8 +8,11 @@ from __future__ import print_function
 import time
 from collections import OrderedDict
 from concurrent.futures import ProcessPoolExecutor
-from os import listdir, makedirs
-from os.path import exists, join, isfile
+from os import listdir
+from os import makedirs
+from os.path import exists
+from os.path import join
+from os.path import isfile
 from typing import Dict
 from typing import List
 from typing import Type

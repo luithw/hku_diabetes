@@ -120,15 +120,9 @@ class TestConfig(DefaultConfig):
     """
 
     # Paths
+    processed_data_path = "test_processed_data"
+    """The path for storing processed data."""
     plot_path = "test_output/plots"
-    """The path for exporting plot PDFs.
-
-    Save the plots to an alternate directory so that it doesn't delete
-    or overwrite the main output directory.
-    """
+    """The path for exporting plot PDFs."""
     results_path = "test_output/results"
-    """The path for exporting results CSV and intermediate pickles.
-
-    Save the results to an alternate directory so that it doesn't delete
-    or overwrite the main output directory.
-    """
+    """The path for exporting results CSV and intermediate pickles."""
