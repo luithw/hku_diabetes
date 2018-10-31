@@ -49,32 +49,55 @@ def match_trade_name(trade_name_tuple, medication):
 
 if __name__ == '__main__':
     tic = time.time()    
-    if 'run' in sys.argv:
+    if 'run' in sys.argv or 'run' in globals():
         Config = RunConfig
     else:
         Config = TestConfig
-    trade_names = get_all_trade_names(RunConfig)
-    medication = import_resource('Medication', config=Config)
-    trade_names['first_word'] = [name.split(' ')[0] for name in trade_names['Name of Product']]
-    trade_names.drop_duplicates(['first_word', 'category_name'], inplace=True)
-    medication["category_name"] = None
-    medication["generic_name"] = None    
-    medication["need_inspection"] = False
 
-    trade_names = trade_names[trade_names['category_name'] == 'CCB']
-    if 'run' not in sys.argv:
-        medication = medication.iloc[:100]
-        trade_names = trade_names.iloc[: 10]
+    csv_filename="%s/annotated_medication.csv" %Config.processed_data_path
 
-    with ProcessPoolExecutor() as executor:
-        matched_rows_generator = executor.map(match_trade_name,
-                                            trade_names.iterrows(),
-                                            itertools.repeat(medication))
-    annotated_medication = pd.concat(list(matched_rows_generator))
-    annotated_medication.drop_duplicates(inplace=True)
+    try:
+        annotated_medication = pd.read_csv("%s/annotated_medication.csv" 
+            %Config.processed_data_path, index_col=0)
+        unannotated_medication = pd.read_csv("%s/unannotated_medication.csv" 
+            %Config.processed_data_path, index_col=0)
+        need_inspection_medication = pd.read_csv("%s/need_inspection_medication.csv" 
+            %Config.processed_data_path, index_col=0)
 
-    # for trade_name_tuple in trade_names.iterrows():
-    #     matched_rows = match_trade_name(trade_name_tuple, medication)
+    except IOError:    
+        trade_names = get_all_trade_names(RunConfig)
+        medication = import_resource('Medication', config=Config)
+        medication['unique_id']=range(len(medication))
+        trade_names['first_word'] = [name.split(' ')[0] for name in trade_names['Name of Product']]
+        trade_names.drop_duplicates(['first_word', 'category_name'], inplace=True)
+        medication["category_name"] = None
+        medication["generic_name"] = None    
+        medication["need_inspection"] = False
 
-    annotated_medication.to_csv("%s/annotated_medication.csv" %Config.processed_data_path)
-    print('Finished all annotation, time passed: %is' %(time.time() - tic))
+        trade_names = trade_names[trade_names['category_name'] == 'CCB']
+        if 'run' not in sys.argv:
+            medication = medication.iloc[:100]
+            trade_names = trade_names.iloc[: 10]
+
+        with ProcessPoolExecutor() as executor:
+            matched_rows_generator = executor.map(match_trade_name,
+                                                trade_names.iterrows(),
+                                                itertools.repeat(medication))
+        annotated_medication = pd.concat(list(matched_rows_generator))
+        annotated_medication.drop_duplicates(inplace=True)
+
+        # for trade_name_tuple in trade_names.iterrows():
+        #     matched_rows = match_trade_name(trade_name_tuple, medication)
+
+        need_inspection_medication = annotated_medication[annotated_medication['need_inspection'] == 1]
+        unannotated_unique_id = set(medication['unique_id']) - set(annotated_medication['unique_id'])
+        unannotated_medication = medication[medication['unique_id'].isin(unannotated_unique_id)]
+
+        annotated_medication.to_csv("%s/annotated_medication.csv" 
+            %Config.processed_data_path)
+        unannotated_medication.to_csv("%s/unannotated_medication.csv" 
+            %Config.processed_data_path)
+        need_inspection_medication.to_csv("%s/need_inspection_medication.csv" 
+            %Config.processed_data_path)
+
+        print('Finished all annotation, time passed: %is' %(time.time() - tic))
