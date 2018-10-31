@@ -324,7 +324,7 @@ def remove_duplicate(resource: pd.DataFrame) -> pd.DataFrame:
     """Removes duplicate measurements taken at the same datetime.
 
     For some reasons, more than one entries are recorded at the same time
-    and same date, but containing diferent values. This was observed for both
+    and same date, but containing different values. This was observed for both
     Creatinine and Hba1c. This function finds the such entries and only keeps
     the first record.
 
