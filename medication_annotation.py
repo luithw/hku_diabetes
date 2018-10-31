@@ -48,6 +48,7 @@ def match_trade_name(trade_name_tuple, medication):
 
 
 if __name__ == '__main__':
+    tic = time.time()    
     if 'run' in sys.argv:
         Config = RunConfig
     else:
@@ -76,3 +77,4 @@ if __name__ == '__main__':
     #     matched_rows = match_trade_name(trade_name_tuple, medication)
 
     annotated_medication.to_csv("%s/annotated_medication.csv" %Config.processed_data_path)
+    print('Finished all annotation, time passed: %is' %(time.time() - tic))
