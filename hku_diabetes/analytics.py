@@ -183,6 +183,11 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
     Creatinine = remove_duplicate(Creatinine)
     Hba1C = remove_duplicate(Hba1C)
 
+    if len(Creatinine) < config.min_analysis_samples or len(
+            Hba1C) < config.min_analysis_samples:
+        # Too few data points for proper analysis
+        return None
+
     if (config.filter_by_starting_eGFR and 
         Creatinine.iloc[0]['eGFR']<config.starting_eGFR):
         # Remove the subject from analysis if the starting eGFR is too small.
@@ -203,8 +208,7 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
     Creatinine_LP = Creatinine.resample(
         config.eGFR_low_pass, on='Datetime').mean().dropna()
     
-    if len(Creatinine_LP) < config.min_analysis_samples or len(
-            Hba1C) < config.min_analysis_samples:
+    if len(Creatinine_LP) < config.min_analysis_samples:
         # Too few data points for proper analysis
         return None
 
