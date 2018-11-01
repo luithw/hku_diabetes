@@ -68,10 +68,17 @@ if __name__ == '__main__':
 
     # except IOError:    
     trade_names = get_all_trade_names(RunConfig)
-    medication = import_resource('Medication', config=Config)
-    medication['unique_id']=range(len(medication))
+    # Add the generic names to be pretended to be trade name so that it can also be searched.
+    trade_names['generic_name'] = trade_names.index
+    generic_names = pd.DataFrame(trade_names.index.drop_duplicates())
+    generic_names['Name of Product'] = generic_names['generic_name']
+    generic_names.set_index('generic_name')
+    trade_names = pd.concat([trade_names, generic_names])
     trade_names['first_word'] = [name.split(' ')[0] for name in trade_names['Name of Product']]
     trade_names.drop_duplicates(['first_word', 'category_name'], inplace=True)
+
+    medication = import_resource('Medication', config=Config)
+    medication['unique_id']=range(len(medication))
     medication["category_name"] = None
     medication["generic_name"] = None
     medication["trade_name"] = None        
