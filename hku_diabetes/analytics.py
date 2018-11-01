@@ -199,14 +199,15 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
             first_valid_eGFR = first_invalid_eGFR - 1
         Creatinine = Creatinine.iloc[first_valid_eGFR:]
 
-    if len(Creatinine) < config.min_analysis_samples or len(
+    # Low pass filtering of the eGFR as there are too many measurements in some days
+    Creatinine_LP = Creatinine.resample(
+        config.eGFR_low_pass, on='Datetime').mean().dropna()
+    
+    if len(Creatinine_LP) < config.min_analysis_samples or len(
             Hba1C) < config.min_analysis_samples:
         # Too few data points for proper analysis
         return None
 
-    # Low pass filtering of the eGFR as there are too many measurements in some days
-    Creatinine_LP = Creatinine.resample(
-        config.eGFR_low_pass, on='Datetime').mean().dropna()
     # Convert the datetime to matplotlib datetime objects
     Creatinine_time = date2num(Creatinine['Datetime'])
     Hba1C_time = date2num(Hba1C['Datetime'])
