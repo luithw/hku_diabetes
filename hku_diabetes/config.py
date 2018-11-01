@@ -32,6 +32,10 @@ class DefaultConfig:
     starting_eGFR = 60
     """The starting eGFR of analysis"""
 
+    # Medication annotation
+    annotation_batch_size = 64
+    """The number of trade names to be matched per batch of paralle process"""
+
     # Importer
     data_file_extensions = ("LIS.xls", "DRG.xls", "DX.xls", "PX.xls")
     """The file name ending and extension of data files that has actual data."""
@@ -117,6 +121,9 @@ class TestConfig(DefaultConfig):
     As the current analytics only support Creatinine and Hba1C, there is no
     need to load the other resources.
     """
+    # Medication annotation
+    annotation_batch_size = 8
+    """The number of trade names to be matched per batch of paralle process"""
 
     # Plots
     plot_samples = 5
