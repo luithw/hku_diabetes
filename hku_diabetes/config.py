@@ -87,7 +87,7 @@ class RunConfig(DefaultConfig):
     """
 
     # Importer
-    # required_resources = ["Creatinine", "Hba1C"]
+    required_resources = ["Creatinine", "Hba1C"]
     """The resources to be loaded by importer.
 
     As the current analytics only support Creatinine and Hba1C, there is no
@@ -95,7 +95,7 @@ class RunConfig(DefaultConfig):
     """
 
     # plots
-    plot_modes = ["regression_distributions", "regression"]
+    # plot_modes = ["regression_distributions", "regression"]
     """The type of plots to be created.
 
     As it takes a lot of time to generate all the raw plots, only plot the
