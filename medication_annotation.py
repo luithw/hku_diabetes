@@ -59,14 +59,14 @@ if __name__ == '__main__':
         Config = TestConfig
 
     # try:
-    #     annotated_medication = pd.read_csv("%s/annotated_medication.csv" 
+    #     annotated = pd.read_csv("%s/annotated_medication.csv" 
     #         %Config.processed_data_path, index_col=0)
-    #     unannotated_medication = pd.read_csv("%s/unannotated_medication.csv" 
+    #     unannotated = pd.read_csv("%s/unannotated_medication.csv" 
     #         %Config.processed_data_path, index_col=0)
-    #     need_inspection_medication = pd.read_csv("%s/need_inspection_medication.csv" 
+    #     need_inspection = pd.read_csv("%s/need_inspection_medication.csv" 
     #         %Config.processed_data_path, index_col=0)
 
-    # except IOError:    
+    # # except IOError:    
     trade_names = get_all_trade_names(RunConfig)
     # Add the generic names to be pretended to be trade name so that it can also be searched.
     trade_names['generic_name'] = trade_names.index
@@ -78,21 +78,27 @@ if __name__ == '__main__':
     trade_names.drop_duplicates(['first_word', 'category_name'], inplace=True)
 
     medication = import_resource('Medication', config=Config)
-    medication['unique_id']=range(len(medication))
-    medication["category_name"] = None
-    medication["generic_name"] = None
-    medication["trade_name"] = None        
-    medication["need_inspection"] = False
 
     trade_names = trade_names[trade_names['category_name'] == 'CCB']
     trade_names = trade_names.loc['Amlodipine']        
+
+    unannotated = medication[['Drug Name', 'Route']].drop_duplicates()
+    unannotated['unique_id']=range(len(unannotated))
+    unannotated['category_name'] = None
+    unannotated['generic_name'] = None
+    unannotated['trade_name'] = None        
+    unannotated['need_inspection'] = False
+    google_name = []
+    for i, name in enumerate(unannotated['Drug Name']):
+        google_name.append('=HYPERLINK("https://www.google.com.hk/search?q=%s","Google")' %name)
+    unannotated['Google'] = google_name
+
     if 'run' not in sys.argv:
-        medication = medication.iloc[:100]
+        unannotated = unannotated.iloc[:100]
         trade_names = trade_names.iloc[8: 48]
 
-    unannotated_medication = medication
-    annotated_medication_list=[]
-    need_inspection_medication_list = []
+    annotated_list=[]
+    need_inspection_list = []
 
     for batch in range(len(trade_names) // Config.annotation_batch_size):
         # Run match_trade_name in parelle and in batches. So that the already annotated
@@ -105,33 +111,32 @@ if __name__ == '__main__':
         with ProcessPoolExecutor() as executor:
             matched_rows_generator = executor.map(match_trade_name,
                                                 trade_names_batch.iterrows(),
-                                                itertools.repeat(unannotated_medication))
-        annotated_medication = pd.concat(list(matched_rows_generator))
-        annotated_medication.drop_duplicates(inplace=True)
+                                                itertools.repeat(unannotated))
+        annotated = pd.concat(list(matched_rows_generator))
+        annotated.drop_duplicates(inplace=True)
 
-        for trade_name_tuple in trade_names_batch.iterrows():
-            matched_rows = match_trade_name(trade_name_tuple, medication)
+        # for trade_name_tuple in trade_names_batch.iterrows():
+        #     matched_rows = match_trade_name(trade_name_tuple, unannotated)
 
-        need_inspection_medication = annotated_medication[annotated_medication['need_inspection'] == 1]
-        unannotated_unique_id = set(unannotated_medication['unique_id']) - set(annotated_medication['unique_id'])
-        unannotated_medication = medication[medication['unique_id'].isin(unannotated_unique_id)]
-        annotated_medication_list.append(annotated_medication)
-        need_inspection_medication_list.append(need_inspection_medication)
+        need_inspection = annotated[annotated['need_inspection'] == 1]
+        unannotated_unique_id = set(unannotated['unique_id']) - set(annotated['unique_id'])
+        unannotated = unannotated[unannotated['unique_id'].isin(unannotated_unique_id)]
+        annotated_list.append(annotated)
+        need_inspection_list.append(need_inspection)
 
-    annotated_medication = pd.concat(annotated_medication_list)
-    need_inspection_medication = pd.concat(need_inspection_medication_list)
-    annotated_medication.to_csv("%s/annotated_medication.csv" 
+    annotated = pd.concat(annotated_list)
+    need_inspection = pd.concat(need_inspection_list)
+    annotated.to_csv("%s/annotated_medication.xlsx" 
         %Config.processed_data_path)
-    unannotated_medication.to_csv("%s/unannotated_medication.csv" 
+    unannotated.to_csv("%s/unannotated_medication.xlsx" 
         %Config.processed_data_path)
-    need_inspection_medication.to_csv("%s/need_inspection_medication.csv" 
+    need_inspection.to_csv("%s/need_inspection_medication.xlsx" 
         %Config.processed_data_path)
-    annotated_medication[['Drug Name', 'Route']].drop_duplicates().to_csv(
-        "%s/annotated_medication_unique_drugs.csv" %Config.processed_data_path)
-    unannotated_medication[['Drug Name', 'Route']].drop_duplicates().to_csv(
-        "%s/unannotated_medication_unique_drugs.csv" %Config.processed_data_path)
-    need_inspection_medication[['Drug Name', 'Route']].drop_duplicates().to_csv(
-        "%s/need_inspection_medication_unique_drugs.csv" %Config.processed_data_path)
-
+    annotated.to_excel("%s/annotated_medication.xlsx" 
+        %Config.processed_data_path)
+    unannotated.to_excel("%s/unannotated_medication.xlsx" 
+        %Config.processed_data_path)
+    need_inspection.to_excel("%s/need_inspection_medication.xlsx" 
+        %Config.processed_data_path)
 
     print('Finished all annotation, time passed: %is' %(time.time() - tic))
