@@ -31,7 +31,6 @@ def match_trade_name(trade_name_tuple, medication):
     matched_rows=[]
     need_inspection=[]
     for j, (med, unique_id) in enumerate(zip(medication['Drug Name'], medication['unique_id'])):
-        print(unique_id)
         med = re.sub('[^A-Za-z0-9]+', ' ', str(med))
         med = re.sub('[\-]+', '', str(med))
         med = med.lower()
