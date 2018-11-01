@@ -64,7 +64,7 @@ def get_one_trade_names(generic_name: str) -> pd.DataFrame:
 
     This is the same as the following web form:
     https://www.drugoffice.gov.hk/eps/do/en/consumer/search_drug_database.html
-    
+
     Args:
         generic_name: The name of drug to be searched.
 
@@ -92,5 +92,5 @@ def get_one_trade_names(generic_name: str) -> pd.DataFrame:
     trade_names.columns = [
         'Name of Product', 'Certificate Holder', 'Reg. No', 'Ingredients'
     ]
-    print("Pulled trade names for : %s" % generic_name)
+    print("Pulled trade names for: %s" % generic_name)
     return trade_names

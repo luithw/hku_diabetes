@@ -179,22 +179,30 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
     """
     Creatinine = data['Creatinine'].loc[[patient_id]].sort_values('Datetime')
     Hba1C = data['Hba1C'].loc[[patient_id]].sort_values('Datetime')
-    if len(Creatinine) < config.min_analysis_samples or len(
-            Hba1C) < config.min_analysis_samples:
-        # Too few data points for proper analysis
-        return None
+    Creatinine = remove_duplicate(Creatinine)
+    Hba1C = remove_duplicate(Hba1C)
 
     if (config.filter_by_starting_eGFR and 
         Creatinine.iloc[0]['eGFR']<config.starting_eGFR):
         # Remove the subject from analysis if the starting eGFR is too small.
         return None
 
-    Creatinine = remove_duplicate(Creatinine)
-    Hba1C = remove_duplicate(Hba1C)
     if config.filter_by_starting_eGFR:
-        first_valid_eGFR = (Creatinine['eGFR'] > config.starting_eGFR).tolist().index(True)
+        # eGFR tends to drop over time, the first time it drops below the threshold is the 
+        # first_invalid_eGFR
+        try:
+            first_invalid_eGFR = (Creatinine['eGFR'] < config.starting_eGFR).tolist().index(True)
+        except ValueError:
+            first_valid_eGFR = 0
+        else:
+            first_valid_eGFR = first_invalid_eGFR - 1
         Creatinine = Creatinine.iloc[first_valid_eGFR:]
-    Creatinine, Hba1C 
+
+    if len(Creatinine) < config.min_analysis_samples or len(
+            Hba1C) < config.min_analysis_samples:
+        # Too few data points for proper analysis
+        return None
+
     # Low pass filtering of the eGFR as there are too many measurements in some days
     Creatinine_LP = Creatinine.resample(
         config.eGFR_low_pass, on='Datetime').mean().dropna()
