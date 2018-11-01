@@ -101,7 +101,7 @@ if __name__ == '__main__':
         google_name.append('=HYPERLINK("https://www.google.com.hk/search?q=%s","Google")' %name)
     unannotated['Google'] = google_name
 
-    drug_names = drug_names[drug_names['category_name'] == 'CCB']
+    # drug_names = drug_names[drug_names['category_name'] == 'CCB']
     # drug_names = drug_names.loc['Felodipine']
 
     annotated_list=[]
@@ -116,15 +116,18 @@ if __name__ == '__main__':
             end = len(drug_names)
         drug_names_batch = drug_names.iloc[start:end]
 
-        # for trade_name_tuple in drug_names_batch.iterrows():
-        #     matched_rows = match_trade_name(trade_name_tuple, unannotated)
-
-        with ProcessPoolExecutor() as executor:
-            matched_rows_generator = executor.map(match_trade_name,
-                                                drug_names_batch.iterrows(),
-                                                itertools.repeat(unannotated))
-        annotated = pd.concat(list(matched_rows_generator))
-        annotated.drop_duplicates(inplace=True)
+        if 'run' in sys.argv or 'run' in globals():
+            with ProcessPoolExecutor() as executor:
+                matched_rows_gen = executor.map(match_trade_name,
+                                                    drug_names_batch.iterrows(),
+                                                    itertools.repeat(unannotated))
+            annotated = pd.concat(list(matched_rows_gen))
+            annotated.drop_duplicates(inplace=True)
+        else:
+            matched_rows = []
+            for trade_name_tuple in drug_names_batch.iterrows():
+                matched_rows.append(match_trade_name(trade_name_tuple, unannotated))
+            annotated = pd.concat(matched_rows)            
 
         need_inspection = annotated[annotated['need_inspection'] == 1]
         unannotated_unique_id = set(unannotated['unique_id']) - set(annotated['unique_id'])
