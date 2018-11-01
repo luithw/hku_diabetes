@@ -95,7 +95,7 @@ class RunConfig(DefaultConfig):
     """
 
     # plots
-    plot_modes = ["regression_distributions"]
+    plot_modes = ["regression_distributions", "regression"]
     """The type of plots to be created.
 
     As it takes a lot of time to generate all the raw plots, only plot the

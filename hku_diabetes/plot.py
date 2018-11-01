@@ -265,8 +265,8 @@ def _plot_cumulative(analyser: Analyser, index: int):
 
 def _plot_regression(analyser: Analyser, index: int):
     patient_id = analyser.intermediate[index]['patient_id']
-    x = analyser.intermediate[index]['Creatinine_LP']['eGFR']
-    y = analyser.intermediate[index]['cumulative_Hba1C']
+    x = analyser.intermediate[index]['cumulative_Hba1C']
+    y = analyser.intermediate[index]['Creatinine_LP']['eGFR']
     regression = analyser.results['regression'].iloc[index]
     fig.suptitle(patient_id)
     plt.scatter(x, y)

@@ -62,6 +62,9 @@ def get_all_trade_names(config: type = DefaultConfig) -> pd.DataFrame:
 def get_one_trade_names(generic_name: str) -> pd.DataFrame:
     """Obtain the list of drug trade name from drugoffice.gov.hk.
 
+    This is the same as the following web form:
+    https://www.drugoffice.gov.hk/eps/do/en/consumer/search_drug_database.html
+    
     Args:
         generic_name: The name of drug to be searched.
 
