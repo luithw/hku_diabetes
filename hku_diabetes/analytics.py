@@ -174,6 +174,7 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
         >>> from hku_diabetes import analytics
         >>> from hku_diabetes.importer import import_all
         >>> data = import_all()
+        >>> analytics.evaluate_eGFR(data)
         >>> patient_id = 802
         >>> intermediate = analytics.analyse_subject(data, patient_id)
     """
