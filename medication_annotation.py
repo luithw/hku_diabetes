@@ -15,11 +15,23 @@ from hku_diabetes.config import TestConfig
 from hku_diabetes.importer import import_resource
 
 COMBINATION_WORDS = ['plus', 'hct']
-
+COMBINATION_DRUGS = [
+    'BLOPRESS', 
+    'ATACAND', 
+    'TEVETEN', 
+    'HYZAAR', 
+    'OSARTIL',
+    'OLMESARTAN',
+    'OLMETEC',
+    'MICARDIS',
+    'DIOVAN',
+    'EXFORGE'
+    'VALSARTAN'
+    ]
 
 def match_trade_name(trade_name_tuple, medication):
     tic = time.time()
-    name = trade_name_tuple[1]['first_word']
+    name = trade_name_tuple[1]['search_name']
     name = re.sub('[\/]+', ' ', str(name))
     name = re.sub('[^A-Za-z0-9\-]+', ' ', str(name))
     name = re.sub('[\-]+', '', str(name))
@@ -38,12 +50,25 @@ def match_trade_name(trade_name_tuple, medication):
         med = med.lower()
         # if ((name == 'amlodpine' or name == 'valsartan') 
         #     and unique_id == 6628) : breakpoint()
-        if name in med.split(" "):            
+        matched = False
+        if len(name.split(" ")) > 1:
+            matched = True
+            for word in name.split(" "):
+                if word not in med.split(" "):
+                    matched = False
+        else:
+            if name in med.split(" "):
+                matched = True
+
+        if matched:            
             matched_rows.append(j)
             inspection = False
-            for word in COMBINATION_WORDS:
-                if word in med:
-                    inspection = True
+            for combination_drug in COMBINATION_DRUGS:
+                if combination_drug.lower() in med:
+                    # breakpoint()
+                    for word in med:
+                        if word not in COMBINATION_WORDS:
+                            inspection = True
             need_inspection.append(inspection)
     annotated = medication.iloc[matched_rows]
     annotated['generic_name'] = generic_name
@@ -73,6 +98,7 @@ if __name__ == '__main__':
     drug_names = get_all_trade_names(RunConfig)
     # Add the generic names to be pretended to be trade name so that it can also be searched.
     drug_names['generic_name'] = drug_names.index
+    drug_names['search_name'] = [name.split(' ')[0] for name in drug_names['Name of Product']]    
     generic_names = pd.read_csv(
         "%s/drug_generic_names.csv" % Config.raw_data_path)
     for category_name in generic_names:
@@ -81,11 +107,11 @@ if __name__ == '__main__':
                 drug_names = drug_names.append({
                     'Name of Product':generic_name,
                     'generic_name':generic_name,
-                    'category_name': category_name
+                    'category_name': category_name,
+                    'search_name': generic_name
                     }, ignore_index=True)
     drug_names.set_index('generic_name', drop=False, inplace = True)
-    drug_names['first_word'] = [name.split(' ')[0] for name in drug_names['Name of Product']]
-    drug_names.drop_duplicates(['first_word', 'category_name'], inplace=True)
+    drug_names.drop_duplicates(['search_name', 'category_name'], inplace=True)
 
     assert not drug_names.loc['Cilnidipine'].empty
 
