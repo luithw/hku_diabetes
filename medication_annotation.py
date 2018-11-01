@@ -34,8 +34,8 @@ def match_trade_name(trade_name_tuple, medication):
         med = re.sub('[^A-Za-z0-9]+', ' ', str(med))
         med = re.sub('[\-]+', '', str(med))
         med = med.lower()
-        # if unique_id == 131217: breakpoint()
-        if re.search(name, med):          
+        # if re.search(name, med):
+        if name in med.split(" "):            
             matched_rows.append(j)
             inspection = False
             for word in COMBINATION_WORDS:
@@ -80,7 +80,7 @@ if __name__ == '__main__':
     medication = import_resource('Medication', config=Config)
 
     trade_names = trade_names[trade_names['category_name'] == 'CCB']
-    trade_names = trade_names.loc['Amlodipine']        
+    # trade_names = trade_names.loc['Amlodipine']        
 
     unannotated = medication[['Drug Name', 'Route']].drop_duplicates()
     unannotated['unique_id']=range(len(unannotated))
