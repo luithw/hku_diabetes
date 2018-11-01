@@ -28,6 +28,8 @@ COMBINATION_DRUGS = [
     'EXFORGE'
     'VALSARTAN'
     ]
+INSPECTION_CATEGORY = ['Long acting nitrate']
+
 
 def match_trade_name(trade_name_tuple, medication):
     tic = time.time()
@@ -63,6 +65,8 @@ def match_trade_name(trade_name_tuple, medication):
         if matched:            
             matched_rows.append(j)
             inspection = False
+            if category_name in INSPECTION_CATEGORY:
+                inspection = True
             for combination_drug in COMBINATION_DRUGS:
                 if combination_drug.lower() in med:
                     # breakpoint()
