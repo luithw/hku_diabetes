@@ -87,7 +87,7 @@ class RunConfig(DefaultConfig):
     """
 
     # Importer
-    required_resources = ["Creatinine", "Hba1C"]
+    # required_resources = ["Creatinine", "Hba1C"]
     """The resources to be loaded by importer.
 
     As the current analytics only support Creatinine and Hba1C, there is no

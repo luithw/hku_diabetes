@@ -20,7 +20,7 @@ COMBINATION_WORDS = ['plus', 'hct']
 def match_trade_name(trade_name_tuple, medication):
     tic = time.time()
     name = trade_name_tuple[1]['first_word']
-    name = re.sub('[\/]+', ' ', str(name))    
+    name = re.sub('[\/]+', ' ', str(name))
     name = re.sub('[^A-Za-z0-9\-]+', ' ', str(name))
     name = re.sub('[\-]+', '', str(name))
     name = name.lower()
@@ -32,11 +32,12 @@ def match_trade_name(trade_name_tuple, medication):
     matched_rows=[]
     need_inspection=[]
     for j, (med, unique_id) in enumerate(zip(medication['Drug Name'], medication['unique_id'])):
-        name = re.sub('[\/]+', ' ', str(name))    
+        # med = re.sub('[\/]+', ' ', str(med))    
         med = re.sub('[^A-Za-z0-9]+', ' ', str(med))
         med = re.sub('[\-]+', '', str(med))
         med = med.lower()
-        # if re.search(name, med):
+        # if ((name == 'amlodpine' or name == 'valsartan') 
+        #     and unique_id == 6628) : breakpoint()
         if name in med.split(" "):            
             matched_rows.append(j)
             inspection = False
@@ -102,9 +103,6 @@ if __name__ == '__main__':
 
     drug_names = drug_names[drug_names['category_name'] == 'CCB']
     # drug_names = drug_names.loc['Felodipine']
-    if 'run' not in sys.argv:
-        unannotated = unannotated.iloc[:100]
-        drug_names = drug_names.iloc[8: 48]
 
     annotated_list=[]
     need_inspection_list = []
@@ -117,15 +115,16 @@ if __name__ == '__main__':
         if end>len(drug_names):
             end = len(drug_names)
         drug_names_batch = drug_names.iloc[start:end]
+
+        # for trade_name_tuple in drug_names_batch.iterrows():
+        #     matched_rows = match_trade_name(trade_name_tuple, unannotated)
+
         with ProcessPoolExecutor() as executor:
             matched_rows_generator = executor.map(match_trade_name,
                                                 drug_names_batch.iterrows(),
                                                 itertools.repeat(unannotated))
         annotated = pd.concat(list(matched_rows_generator))
         annotated.drop_duplicates(inplace=True)
-
-        # for trade_name_tuple in drug_names_batch.iterrows():
-        #     matched_rows = match_trade_name(trade_name_tuple, unannotated)
 
         need_inspection = annotated[annotated['need_inspection'] == 1]
         unannotated_unique_id = set(unannotated['unique_id']) - set(annotated['unique_id'])
