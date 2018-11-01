@@ -31,6 +31,14 @@ COMBINATION_DRUGS = [
 INSPECTION_CATEGORY = ['Long acting nitrate']
 
 
+def add_label(row, key, value):
+    if row[key] is None:
+        row[key] = value
+    else:
+        row[key] = row[key] + ', ' + value
+    return row
+
+
 def match_trade_name(trade_name_tuple, medication):
     tic = time.time()
     name = trade_name_tuple[1]['search_name']
@@ -75,10 +83,12 @@ def match_trade_name(trade_name_tuple, medication):
                             inspection = True
             need_inspection.append(inspection)
     annotated = medication.iloc[matched_rows]
-    annotated['generic_name'] = generic_name
-    annotated['category_name'] = category_name
-    annotated['trade_name'] = trade_name    
-    annotated['need_inspection'] = need_inspection
+    for i, (name, row) in enumerate(annotated.iterrows()):  
+        row = add_label(row, 'generic_name', generic_name)
+        row =add_label(row, 'category_name', category_name)
+        row = add_label(row, 'trade_name', trade_name) 
+        row['need_inspection'] = row['need_inspection'] or need_inspection
+        annotated.iloc[i] = row
     print('Finished %s, time passed: %is' %(name, (time.time() - tic)))
     return annotated
 
@@ -134,39 +144,30 @@ if __name__ == '__main__':
     # drug_names = drug_names[drug_names['category_name'] == 'CCB']
     # drug_names = drug_names.loc['Felodipine']
 
+    # if 'run' not in sys.argv and 'run' not in globals():
+    #     unannotated = unannotated.iloc[:100]
+    #     drug_names = drug_names.iloc[8:100]
+
     annotated_list=[]
     need_inspection_list = []
 
-    for batch in range(len(drug_names) // Config.annotation_batch_size + 1):
-        # Run match_trade_name in parelle and in batches. So that the already annotated
-        # medication entries can be removed after every batch
-        start = batch * Config.annotation_batch_size
-        end = (batch+1) * Config.annotation_batch_size
-        if end>len(drug_names):
-            end = len(drug_names)
-        drug_names_batch = drug_names.iloc[start:end]
+    if 'run' in sys.argv or 'run' in globals():
+        with ProcessPoolExecutor() as executor:
+            matched_rows_gen = executor.map(match_trade_name,
+                                                drug_names.iterrows(),
+                                                itertools.repeat(unannotated))
+        annotated = pd.concat(list(matched_rows_gen))
+        annotated.drop_duplicates(inplace=True)
+    else:
+        matched_rows = []
+        for trade_name_tuple in drug_names.iterrows():
+            matched_rows.append(match_trade_name(trade_name_tuple, unannotated))
+        annotated = pd.concat(matched_rows)            
 
-        if 'run' in sys.argv or 'run' in globals():
-            with ProcessPoolExecutor() as executor:
-                matched_rows_gen = executor.map(match_trade_name,
-                                                    drug_names_batch.iterrows(),
-                                                    itertools.repeat(unannotated))
-            annotated = pd.concat(list(matched_rows_gen))
-            annotated.drop_duplicates(inplace=True)
-        else:
-            matched_rows = []
-            for trade_name_tuple in drug_names_batch.iterrows():
-                matched_rows.append(match_trade_name(trade_name_tuple, unannotated))
-            annotated = pd.concat(matched_rows)            
+    need_inspection = annotated[annotated['need_inspection'] == 1]
+    unannotated_unique_id = set(unannotated['unique_id']) - set(annotated['unique_id'])
+    unannotated = unannotated[unannotated['unique_id'].isin(unannotated_unique_id)]
 
-        need_inspection = annotated[annotated['need_inspection'] == 1]
-        unannotated_unique_id = set(unannotated['unique_id']) - set(annotated['unique_id'])
-        unannotated = unannotated[unannotated['unique_id'].isin(unannotated_unique_id)]
-        annotated_list.append(annotated)
-        need_inspection_list.append(need_inspection)
-
-    annotated = pd.concat(annotated_list)
-    need_inspection = pd.concat(need_inspection_list)
     annotated.to_csv("%s/annotated_medication.xlsx" 
         %Config.processed_data_path)
     unannotated.to_csv("%s/unannotated_medication.xlsx" 
