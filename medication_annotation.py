@@ -66,6 +66,7 @@ def match_trade_name(trade_name_tuple, medication):
             for word in name.split(" "):
                 if word not in med.split(" "):
                     matched = False
+                    break
         else:
             if name in med.split(" "):
                 matched = True
@@ -145,12 +146,9 @@ if __name__ == '__main__':
         google_name.append('=HYPERLINK("https://www.google.com.hk/search?q=%s","Google")' %name)
     unannotated['Google'] = google_name
 
-    # drug_names = drug_names[drug_names['category_name'] == 'CCB']
-    # drug_names = drug_names.loc['Felodipine']
-
     if 'run' not in sys.argv and 'run' not in globals():
         unannotated = unannotated.iloc[:100]
-        drug_names = drug_names.iloc[8:100]
+        drug_names = drug_names[drug_names['category_name'] == 'Long acting nitrate']
 
     annotated_list=[]
     need_inspection_list = []
@@ -169,15 +167,10 @@ if __name__ == '__main__':
         annotated = pd.concat(matched_rows)            
 
     need_inspection = annotated[annotated['need_inspection'] == 1]
+    annotated = annotated[annotated['need_inspection'] == 0]
     unannotated_unique_id = set(unannotated['unique_id']) - set(annotated['unique_id'])
     unannotated = unannotated[unannotated['unique_id'].isin(unannotated_unique_id)]
 
-    annotated.to_csv("%s/annotated_medication.xlsx" 
-        %Config.processed_data_path)
-    unannotated.to_csv("%s/unannotated_medication.xlsx" 
-        %Config.processed_data_path)
-    need_inspection.to_csv("%s/need_inspection_medication.xlsx" 
-        %Config.processed_data_path)
     annotated.to_excel("%s/annotated_medication.xlsx" 
         %Config.processed_data_path)
     unannotated.to_excel("%s/unannotated_medication.xlsx" 
