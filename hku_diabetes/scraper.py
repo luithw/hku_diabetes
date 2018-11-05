@@ -94,7 +94,7 @@ def get_one_trade_names(generic_name: str) -> pd.DataFrame:
     trade_names = trade_names.iloc[
         3:, :4]  # Get rid of the rows and columns that are parsed incorrectly.
     trade_names.columns = [
-        'Name of Product', 'Certificate Holder', 'Reg. No', 'Ingredients'
+        'trade_name', 'certificate_holder', 'reg_number', 'ingredients'
     ]
     print("Pulled trade names for: %s" % generic_name)
     return trade_names

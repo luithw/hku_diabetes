@@ -15,21 +15,9 @@ from hku_diabetes.config import RunConfig
 from hku_diabetes.config import TestConfig
 from hku_diabetes.importer import import_resource
 
-COMBINATION_WORDS = ['plus', 'hct']
-COMBINATION_DRUGS = [
-    'BLOPRESS', 
-    'ATACAND', 
-    'TEVETEN', 
-    'HYZAAR', 
-    'OSARTIL',
-    'OLMESARTAN',
-    'OLMETEC',
-    'MICARDIS',
-    'DIOVAN',
-    'EXFORGE'
-    'VALSARTAN'
-    ]
 INSPECTION_CATEGORY = ['Long acting nitrate']
+COMBINATION_WORDS = ['plus', 'hct']
+COMBINATION_DRUGS = []
 
 
 def add_label(row, key, value):
@@ -50,7 +38,7 @@ def match_trade_name(trade_name_tuple, medication):
     generic_name = trade_name_tuple[0]    
     trade_name_row = trade_name_tuple[1]
     category_name = trade_name_row['category_name']    
-    trade_name = trade_name_row['Name of Product']
+    trade_name = trade_name_row['trade_name']
     print("Annotating medication table with generic_name: %s and trade_name: %s" %(generic_name, name))
     matched_rows=[]
     need_inspection=[]
@@ -113,7 +101,7 @@ if __name__ == '__main__':
     drug_names = get_all_trade_names(RunConfig)
     # Add the generic names to be pretended to be trade name so that it can also be searched.
     drug_names['generic_name'] = drug_names.index
-    drug_names['search_name'] = [name.split(' ')[0] for name in drug_names['Name of Product']]    
+    drug_names['search_name'] = [name.split(' ')[0] for name in drug_names['trade_name']]    
     generic_names_excel = pd.read_excel(
         "%s/Drug names.xlsx" % Config.raw_data_path, sheet_name=None)    
     for sheet_name, generic_names in generic_names_excel.items():
@@ -124,7 +112,7 @@ if __name__ == '__main__':
             for i, generic_name in enumerate(generic_names[category_name]):
                 if isinstance(generic_name, str):
                     drug_names = drug_names.append({
-                        'Name of Product':generic_name,
+                        'trade_name':generic_name,
                         'generic_name':generic_name,
                         'category_name': category_name,
                         'search_name': generic_name
@@ -145,6 +133,15 @@ if __name__ == '__main__':
     for i, name in enumerate(unannotated['Drug Name']):
         google_name.append('=HYPERLINK("https://www.google.com.hk/search?q=%s","Google")' %name)
     unannotated['Google'] = google_name
+
+    # Generate the COMBINATION_DRUGS list
+    for word in COMBINATION_WORDS:
+        for i, name in enumerate(drug_names['trade_name']):
+            name = re.sub('[^A-Za-z0-9]+', ' ', str(name))
+            name = re.sub('[\-]+', '', str(name))     
+            name = name.lower()   
+            if word in name.split():
+                COMBINATION_DRUGS.append(drug_names.iloc[i]['search_name'])                       
 
     if 'run' not in sys.argv and 'run' not in globals():
         drug_names = drug_names[((drug_names['category_name'] == 'Alpha glucosidase inhibitor') |
