@@ -17,7 +17,6 @@ from hku_diabetes.importer import import_resource
 
 INSPECTION_CATEGORY = ['Long acting nitrate']
 COMBINATION_WORDS = ['plus', 'hct']
-COMBINATION_DRUGS = []
 
 
 def add_label(row, key, value):
@@ -28,7 +27,7 @@ def add_label(row, key, value):
     return row
 
 
-def match_trade_name(trade_name_tuple, medication):
+def match_trade_name(trade_name_tuple, medication, combination_drugs):
     tic = time.time()
     name = trade_name_tuple[1]['search_name']
     name = re.sub('[\/]+', ' ', str(name))
@@ -65,7 +64,7 @@ def match_trade_name(trade_name_tuple, medication):
             inspection = False
             if category_name in INSPECTION_CATEGORY:
                 inspection = True
-            for combination_drug in COMBINATION_DRUGS:
+            for combination_drug in combination_drugs:
                 if combination_drug.lower() in med:
                     for word in med:
                         if word not in COMBINATION_WORDS:
@@ -135,16 +134,17 @@ if __name__ == '__main__':
     unannotated['Google'] = google_name
 
     # Generate the COMBINATION_DRUGS list
+    combination_drugs = []
     for word in COMBINATION_WORDS:
         for i, name in enumerate(drug_names['trade_name']):
             name = re.sub('[^A-Za-z0-9]+', ' ', str(name))
             name = re.sub('[\-]+', '', str(name))     
             name = name.lower()   
             if word in name.split():
-                COMBINATION_DRUGS.append(drug_names.iloc[i]['search_name'])                       
+                combination_drugs.append(drug_names.iloc[i]['search_name'])                       
 
     if 'run' not in sys.argv and 'run' not in globals():
-        drug_names = drug_names[((drug_names['category_name'] == 'Alpha glucosidase inhibitor') |
+        drug_names = drug_names[((drug_names['category_name'] == 'CCB') |
             (drug_names['category_name'] == 'Long acting nitrate'))]
         # drug_names = drug_names.iloc[10:30]
 
@@ -152,13 +152,14 @@ if __name__ == '__main__':
         with ProcessPoolExecutor() as executor:
             matched_rows_gen = executor.map(match_trade_name,
                                                 drug_names.iterrows(),
-                                                itertools.repeat(unannotated))
+                                                itertools.repeat(unannotated),
+                                                itertools.repeat(combination_drugs))
         annotated = pd.concat(list(matched_rows_gen))
         annotated.drop_duplicates(inplace=True)
     else:
         matched_rows = []
         for trade_name_tuple in drug_names.iterrows():
-            matched_rows.append(match_trade_name(trade_name_tuple, unannotated))
+            matched_rows.append(match_trade_name(trade_name_tuple, unannotated, combination_drugs))
         annotated = pd.concat(matched_rows)            
 
     need_inspection = annotated[annotated['need_inspection']]
