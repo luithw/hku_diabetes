@@ -51,10 +51,18 @@ def get_all_trade_names(config: type = DefaultConfig) -> pd.DataFrame:
                     if config is TestConfig and index >= 3:
                         break
                     if isinstance(generic_name, str):
-                        names = get_one_trade_names(generic_name)
-                        names['generic_name'] = generic_name
-                        names['category_name'] = category_name
-                        trade_names_list.append(names)
+                        try:
+                            names = get_one_trade_names(generic_name)
+                            names['generic_name'] = generic_name
+                            names['category_name'] = category_name
+                            trade_names_list.append(names)                            
+                        except ValueError:
+                            for i in range(1, 5):
+                                names = get_one_trade_names(generic_name, page_number=i, per_page=200)
+                                names['generic_name'] = generic_name
+                                names['category_name'] = category_name
+                                trade_names_list.append(names)
+
         trade_names = pd.concat(trade_names_list)
         trade_names.set_index('generic_name', inplace=True)
         trade_names.to_csv(
@@ -63,7 +71,7 @@ def get_all_trade_names(config: type = DefaultConfig) -> pd.DataFrame:
     return trade_names
 
 
-def get_one_trade_names(generic_name: str) -> pd.DataFrame:
+def get_one_trade_names(generic_name: str, *, page_number: int=1, per_page: int=200) -> pd.DataFrame:
     """Obtain the list of drug trade name from drugoffice.gov.hk.
 
     This is the same as the following web form:
@@ -83,11 +91,12 @@ def get_one_trade_names(generic_name: str) -> pd.DataFrame:
         'fromLang': 'en',
         'fromSection': 'consumer',
         'keyword': generic_name,
-        'pageNoRequested': 1,
-        'perPage': 1000,
+        'pageNoRequested': page_number,
+        'perPage': per_page,
         'searchType': 'O',
         'userType': 'E'
     }
+    print("Pulling trade names for: %s... " % generic_name, end="")
     r = requests.post(request_url, data=data)
     df_list = pd.read_html(r.text, index_col=0, header=0)
     trade_names = df_list[0]
@@ -96,5 +105,5 @@ def get_one_trade_names(generic_name: str) -> pd.DataFrame:
     trade_names.columns = [
         'trade_name', 'certificate_holder', 'reg_number', 'ingredients'
     ]
-    print("Pulled trade names for: %s" % generic_name)
+    print("Sucess!!!")
     return trade_names
