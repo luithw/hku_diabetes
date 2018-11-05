@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Script to call the package scrapper.
 """
+import numpy as np
 import itertools
 import pandas as pd
 import re
@@ -71,14 +72,13 @@ def match_trade_name(trade_name_tuple, medication):
             if name in med.split(" "):
                 matched = True
 
-        if matched:            
+        if matched:
             matched_rows.append(j)
             inspection = False
             if category_name in INSPECTION_CATEGORY:
                 inspection = True
             for combination_drug in COMBINATION_DRUGS:
                 if combination_drug.lower() in med:
-                    # breakpoint()
                     for word in med:
                         if word not in COMBINATION_WORDS:
                             inspection = True
@@ -88,7 +88,7 @@ def match_trade_name(trade_name_tuple, medication):
         row = add_label(row, 'generic_name', generic_name)
         row =add_label(row, 'category_name', category_name)
         row = add_label(row, 'trade_name', trade_name) 
-        row['need_inspection'] = row['need_inspection'] or need_inspection
+        row['need_inspection'] = row['need_inspection'] or need_inspection[i]
         annotated.iloc[i] = row
     print('Finished %s, time passed: %is' %(name, (time.time() - tic)))
     return annotated
@@ -147,11 +147,9 @@ if __name__ == '__main__':
     unannotated['Google'] = google_name
 
     if 'run' not in sys.argv and 'run' not in globals():
-        unannotated = unannotated.iloc[:100]
-        drug_names = drug_names[drug_names['category_name'] == 'Long acting nitrate']
-
-    annotated_list=[]
-    need_inspection_list = []
+        drug_names = drug_names[((drug_names['category_name'] == 'Alpha glucosidase inhibitor') |
+            (drug_names['category_name'] == 'Long acting nitrate'))]
+        # drug_names = drug_names.iloc[10:30]
 
     if 'run' in sys.argv or 'run' in globals():
         with ProcessPoolExecutor() as executor:
@@ -166,8 +164,8 @@ if __name__ == '__main__':
             matched_rows.append(match_trade_name(trade_name_tuple, unannotated))
         annotated = pd.concat(matched_rows)            
 
-    need_inspection = annotated[annotated['need_inspection'] == 1]
-    annotated = annotated[annotated['need_inspection'] == 0]
+    need_inspection = annotated[annotated['need_inspection']]
+    annotated = annotated[annotated['need_inspection'] == False]
     unannotated_unique_id = set(unannotated['unique_id']) - set(annotated['unique_id'])
     unannotated = unannotated[unannotated['unique_id'].isin(unannotated_unique_id)]
 
