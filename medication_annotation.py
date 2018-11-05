@@ -113,17 +113,23 @@ if __name__ == '__main__':
     # Add the generic names to be pretended to be trade name so that it can also be searched.
     drug_names['generic_name'] = drug_names.index
     drug_names['search_name'] = [name.split(' ')[0] for name in drug_names['Name of Product']]    
-    generic_names = pd.read_csv(
-        "%s/drug_generic_names.csv" % Config.raw_data_path)
-    for category_name in generic_names:
-        for i, generic_name in enumerate(generic_names[category_name]):
-            if isinstance(generic_name, str):
-                drug_names = drug_names.append({
-                    'Name of Product':generic_name,
-                    'generic_name':generic_name,
-                    'category_name': category_name,
-                    'search_name': generic_name
-                    }, ignore_index=True)
+    generic_names_excel = pd.read_excel(
+        "%s/Drug names.xlsx" % config.raw_data_path, sheet_name=None)    
+    for sheet_name, generic_names in generic_names_excel.items():
+        if sheet_name == "To notes":
+            # Ignore the To notes sheet
+            continue
+        if config is TestConfig:
+            generic_names = generic_names.iloc[:, :2]
+        for category_name in generic_names:    
+            for i, generic_name in enumerate(generic_names[category_name]):
+                if isinstance(generic_name, str):
+                    drug_names = drug_names.append({
+                        'Name of Product':generic_name,
+                        'generic_name':generic_name,
+                        'category_name': category_name,
+                        'search_name': generic_name
+                        }, ignore_index=True)
     drug_names.set_index('generic_name', drop=False, inplace = True)
     drug_names.drop_duplicates(['search_name', 'category_name'], inplace=True)
 

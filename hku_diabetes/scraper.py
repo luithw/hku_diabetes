@@ -37,20 +37,24 @@ def get_all_trade_names(config: type = DefaultConfig) -> pd.DataFrame:
     except IOError:
         if not exists(config.processed_data_path):
             makedirs(config.processed_data_path)
-        generic_names = pd.read_csv(
-            "%s/drug_generic_names.csv" % config.raw_data_path)
-        if config is TestConfig:
-            generic_names = generic_names.iloc[:, :2]
-        trade_names_list = []
-        for category_name in generic_names:
-            for index, generic_name in enumerate(generic_names[category_name]):
-                if config is TestConfig and index >= 3:
-                    break
-                if isinstance(generic_name, str):
-                    names = get_one_trade_names(generic_name)
-                    names['generic_name'] = generic_name
-                    names['category_name'] = category_name
-                    trade_names_list.append(names)
+        generic_names_excel = pd.read_excel(
+            "%s/Drug names.xlsx" % config.raw_data_path, sheet_name=None)    
+        for sheet_name, generic_names in generic_names_excel.items():
+            if sheet_name == "To notes":
+                # Ignore the To notes sheet
+                continue
+            if config is TestConfig:
+                generic_names = generic_names.iloc[:, :2]
+            trade_names_list = []
+            for category_name in generic_names:
+                for index, generic_name in enumerate(generic_names[category_name]):
+                    if config is TestConfig and index >= 3:
+                        break
+                    if isinstance(generic_name, str):
+                        names = get_one_trade_names(generic_name)
+                        names['generic_name'] = generic_name
+                        names['category_name'] = category_name
+                        trade_names_list.append(names)
         trade_names = pd.concat(trade_names_list)
         trade_names.set_index('generic_name', inplace=True)
         trade_names.to_csv(
