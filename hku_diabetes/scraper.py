@@ -38,14 +38,14 @@ def get_all_trade_names(config: type = DefaultConfig) -> pd.DataFrame:
         if not exists(config.processed_data_path):
             makedirs(config.processed_data_path)
         generic_names_excel = pd.read_excel(
-            "%s/Drug names.xlsx" % config.raw_data_path, sheet_name=None)    
+            "%s/Drug names.xlsx" % config.raw_data_path, sheet_name=None)
+        trade_names_list = []        
         for sheet_name, generic_names in generic_names_excel.items():
             if sheet_name == "To notes":
                 # Ignore the To notes sheet
                 continue
             if config is TestConfig:
                 generic_names = generic_names.iloc[:, :2]
-            trade_names_list = []
             for category_name in generic_names:
                 for index, generic_name in enumerate(generic_names[category_name]):
                     if config is TestConfig and index >= 3:
