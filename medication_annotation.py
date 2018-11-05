@@ -114,13 +114,11 @@ if __name__ == '__main__':
     drug_names['generic_name'] = drug_names.index
     drug_names['search_name'] = [name.split(' ')[0] for name in drug_names['Name of Product']]    
     generic_names_excel = pd.read_excel(
-        "%s/Drug names.xlsx" % config.raw_data_path, sheet_name=None)    
+        "%s/Drug names.xlsx" % Config.raw_data_path, sheet_name=None)    
     for sheet_name, generic_names in generic_names_excel.items():
         if sheet_name == "To notes":
             # Ignore the To notes sheet
             continue
-        if config is TestConfig:
-            generic_names = generic_names.iloc[:, :2]
         for category_name in generic_names:    
             for i, generic_name in enumerate(generic_names[category_name]):
                 if isinstance(generic_name, str):
@@ -150,9 +148,9 @@ if __name__ == '__main__':
     # drug_names = drug_names[drug_names['category_name'] == 'CCB']
     # drug_names = drug_names.loc['Felodipine']
 
-    # if 'run' not in sys.argv and 'run' not in globals():
-    #     unannotated = unannotated.iloc[:100]
-    #     drug_names = drug_names.iloc[8:100]
+    if 'run' not in sys.argv and 'run' not in globals():
+        unannotated = unannotated.iloc[:100]
+        drug_names = drug_names.iloc[8:100]
 
     annotated_list=[]
     need_inspection_list = []
