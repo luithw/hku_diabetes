@@ -19,13 +19,11 @@ INSPECTION_CATEGORY = ['Long acting nitrate']
 COMBINATION_WORDS = ['plus', 'hct']
 
 
-def add_label(row, key, value):
-    if row[key] is None:
-        row[key] = value
+def add_label(annotated, additional_label, position, key):
+    if key == 'need_inspection':
+        annotated[key].iat[position] = annotated[key].iat[position] or additional_label[key]
     else:
-        row[key] = row[key] + ', ' + value
-    return row
-
+        annotated[key].iat[position] = annotated[key].iat[position] + ', ' + additional_label[key]
 
 def match_trade_name(trade_name_tuple, medication, combination_drugs):
     tic = time.time()
@@ -71,12 +69,10 @@ def match_trade_name(trade_name_tuple, medication, combination_drugs):
                             inspection = True
             need_inspection.append(inspection)
     annotated = medication.iloc[matched_rows]
-    for i, (name, row) in enumerate(annotated.iterrows()):  
-        row = add_label(row, 'generic_name', generic_name)
-        row =add_label(row, 'category_name', category_name)
-        row = add_label(row, 'trade_name', trade_name) 
-        row['need_inspection'] = row['need_inspection'] or need_inspection[i]
-        annotated.iloc[i] = row
+    annotated['generic_name'] = generic_name
+    annotated['category_name'] = category_name
+    annotated['trade_name'] = trade_name
+    annotated['need_inspection'] = need_inspection
     print('Finished %s, time passed: %is' %(name, (time.time() - tic)))
     return annotated
 
@@ -154,18 +150,34 @@ if __name__ == '__main__':
                                                 drug_names.iterrows(),
                                                 itertools.repeat(unannotated),
                                                 itertools.repeat(combination_drugs))
-        annotated = pd.concat(list(matched_rows_gen))
-        annotated.drop_duplicates(inplace=True)
+        matched_multiple_annotations = pd.concat(list(matched_rows_gen))
+        matched_multiple_annotations.drop_duplicates(inplace=True)
     else:
         matched_rows = []
         for trade_name_tuple in drug_names.iterrows():
             matched_rows.append(match_trade_name(trade_name_tuple, unannotated, combination_drugs))
-        annotated = pd.concat(matched_rows)            
+        matched_multiple_annotations = pd.concat(matched_rows)            
 
-    need_inspection = annotated[annotated['need_inspection']]
-    annotated = annotated[annotated['need_inspection'] == False]
+    # Need to check for each row to combine medication with multiple annotations
+    annotated = matched_multiple_annotations.drop_duplicates('unique_id')
+    for position, unique_id in enumerate(annotated['unique_id']):
+        multiple_annotations = matched_multiple_annotations.loc[matched_multiple_annotations['unique_id']==unique_id]
+        if len(multiple_annotations)>1:
+            # Add on the multiple annotations to the first row.
+            for i, (index, additional_label) in enumerate(multiple_annotations.iterrows()):
+                annotated[annotated['unique_id']==unique_id]['generic_name']
+                if i == 1:
+                    continue    # No need to add the label of the first row
+                add_label(annotated, additional_label, position, 'generic_name')
+                add_label(annotated, additional_label, position, 'category_name')
+                add_label(annotated, additional_label, position, 'trade_name')
+                add_label(annotated, additional_label, position, 'need_inspection')
+    assert len(annotated.loc[annotated['unique_id']==178]['generic_name'].iloc[0].split(", ")) == 2
+
     unannotated_unique_id = set(unannotated['unique_id']) - set(annotated['unique_id'])
     unannotated = unannotated[unannotated['unique_id'].isin(unannotated_unique_id)]
+    need_inspection = annotated[annotated['need_inspection']==1]
+    annotated = annotated[annotated['need_inspection'] == False]
 
     annotated.to_excel("%s/annotated_medication.xlsx" 
         %Config.processed_data_path)
