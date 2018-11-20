@@ -37,7 +37,7 @@ class DefaultConfig:
     """The number of trade names to be matched per batch of paralle process"""
 
     # Importer
-    data_file_extensions = ("LIS.xls", "DRG.xls", "DX.xls", "PX.xls", "OP.xls", "DOD.xls", )
+    data_file_extensions = ("LIS.xls", "DRG.xls", "DX.xls", "PX.xls", "OP.xls", "DOD.xlsx")
     """The file name ending and extension of data files that has actual data."""
     required_resources = [
         "Creatinine", "Hba1C", "Medication", "Diagnosis", "Procedure", "HDL",

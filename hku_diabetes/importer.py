@@ -101,8 +101,8 @@ def import_resource(resource_name: str,
             for filename in [f for f in filenames if f.endswith(config.data_file_extensions)]:
                 data_files.append(os.path.join(dirpath, filename))
         with ProcessPoolExecutor() as executor:
-            df_lists = executor.map(_read_html_file, data_files)
-        dfs = [df_list[0] for df_list in df_lists if df_list]
+            df_generator = executor.map(_read_html_file, data_files)
+        dfs = [df_list[0] for df_list in df_generator if df_list]
         resource = pd.concat(dfs)
         if not os.path.exists(config.processed_data_path):
             os.makedirs(config.processed_data_path)
@@ -114,9 +114,14 @@ def _read_html_file(filepath: str) -> List[pd.DataFrame]:
     """Helper function to read a single HTML file,
     called by ProcessPoolExecutor.
     """
-    with open(filepath, 'r') as file:
-        df = pd.read_html(file.read(), index_col=0, header=0)
-    return df
+    try:
+        with open(filepath, 'r') as file:         
+            df_list = pd.read_html(file.read(), index_col=0, header=0)
+    except UnicodeDecodeError as err:
+        # For some reasons sometimes there are excel format files 
+        # among the html files
+        df_list = [pd.read_excel(filepath, index_col=0, header=0)]
+    return df_list
 
 
 def _cleaning(data: dict):

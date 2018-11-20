@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """Main Script to use hku_diabetes."""
+import time
+
 from hku_diabetes.config import DefaultConfig
 from hku_diabetes.importer import import_resource
 
@@ -7,9 +9,9 @@ from hku_diabetes.importer import import_resource
 class MyConfig(DefaultConfig):
     raw_data_path = "../qmh_data"
     processed_data_path = "../qmh_data/processed"
-    required_resources = ['BP', 
+    required_resources = [
+                        'BP', 
                         'Creatinine', 
-                        'Demographics', 
                         'HDL', 
                         'Hb', 
                         'Hba1c', 
@@ -17,7 +19,9 @@ class MyConfig(DefaultConfig):
                         'LDL', 
                         'Platelet', 
                         'TG', 
-                        'Total_cholesterol']
+                        'Total_cholesterol',
+                        'Demographics'
+                        ]
 
 
 if __name__ == '__main__':
@@ -26,7 +30,7 @@ if __name__ == '__main__':
             continue  # need the separate routine below to import demographic data
         tic = time.time()
         resource_key = resource_name
-        data[resource_key] = import_resource(resource_name, config=MyConfig)
+        data = import_resource(resource_name, config=MyConfig)
         print('Finished importing %s, time passed: %is' % (resource_name,
                                                            time.time() - tic))
 
