@@ -37,11 +37,11 @@ class DefaultConfig:
     """The number of trade names to be matched per batch of paralle process"""
 
     # Importer
-    data_file_extensions = ("LIS.xls", "DRG.xls", "DX.xls", "PX.xls")
+    data_file_extensions = ("LIS.xls", "DRG.xls", "DX.xls", "PX.xls", "OP.xls", "DOD.xls", )
     """The file name ending and extension of data files that has actual data."""
     required_resources = [
         "Creatinine", "Hba1C", "Medication", "Diagnosis", "Procedure", "HDL",
-        "LDL"
+        "LDL", "Demographic"
     ]
     """The resources to be loaded by importer."""
 
@@ -87,7 +87,7 @@ class RunConfig(DefaultConfig):
     """
 
     # Importer
-    required_resources = ["Creatinine", "Hba1C"]
+    required_resources = ["Creatinine", "Hba1C", "Demographic"]
     """The resources to be loaded by importer.
 
     As the current analytics only support Creatinine and Hba1C, there is no
@@ -115,7 +115,7 @@ class TestConfig(DefaultConfig):
     """
 
     # Importer
-    required_resources = ["Creatinine", "Hba1C"]
+    required_resources = ["Creatinine", "Hba1C", "Demographic"]
     """The resources to be loaded by importer.
 
     As the current analytics only support Creatinine and Hba1C, there is no

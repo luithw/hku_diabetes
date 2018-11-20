@@ -5,14 +5,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import os
 import time
+
 from collections import OrderedDict
 from concurrent.futures import ProcessPoolExecutor
-from os import listdir
-from os import makedirs
-from os.path import exists
-from os.path import join
-from os.path import isfile
 from typing import Dict
 from typing import List
 from typing import Type
@@ -51,21 +48,22 @@ def import_all(config: Type[DefaultConfig] = DefaultConfig) -> Dict[str, pd.Data
             continue  # need the separate routine below to import demographic data
         tic = time.time()
         resource_key = resource_name
-        data[resource_key] = import_resource(resource_name)
+        data[resource_key] = import_resource(resource_name, config=config)
         print('Finished importing %s, time passed: %is' % (resource_name,
                                                            time.time() - tic))
 
-    # Special routine for Demographic data
-    try:
-        data['Demographic'] = pd.read_csv(
-            "%s/Demographic.csv" % config.processed_data_path, index_col=0)
-    except IOError:
-        data['Demographic'] = pd.read_excel(
-            "%s/total 7307_DOB_DOD_SEX.xlsx" % config.raw_data_path,
-            index_col=1,
-            header=0)
-        data['Demographic'].to_csv(
-            "%s/Demographic.csv" % config.processed_data_path)
+    if 'Demographic' in config.required_resources:
+        # Special routine for Demographic data
+        try:
+            data['Demographic'] = pd.read_csv(
+                "%s/Demographic.csv" % config.processed_data_path, index_col=0)
+        except IOError:
+            data['Demographic'] = pd.read_excel(
+                "%s/total 7307_DOB_DOD_SEX.xlsx" % config.raw_data_path,
+                index_col=1,
+                header=0)
+            data['Demographic'].to_csv(
+                "%s/Demographic.csv" % config.processed_data_path)
     _cleaning(data)
     return data
 
@@ -97,18 +95,17 @@ def import_resource(resource_name: str,
     try:
         resource = pd.read_csv(csv_filename, index_col=0)
     except IOError:
-        path = "%s/%s" % (config.raw_data_path, resource_name)
-        files = [file for file in listdir(path) if isfile(join(path, file))]
-        data_files = [
-            join(path, file) for file in files
-            if file.endswith(config.data_file_extensions)
-        ]
+        path = os.path.join(config.raw_data_path, resource_name)
+        data_files = []
+        for dirpath, dirnames, filenames in os.walk(path):
+            for filename in [f for f in filenames if f.endswith(config.data_file_extensions)]:
+                data_files.append(os.path.join(dirpath, filename))
         with ProcessPoolExecutor() as executor:
             df_lists = executor.map(_read_html_file, data_files)
         dfs = [df_list[0] for df_list in df_lists if df_list]
         resource = pd.concat(dfs)
-        if not exists(config.processed_data_path):
-            makedirs(config.processed_data_path)
+        if not os.path.exists(config.processed_data_path):
+            os.makedirs(config.processed_data_path)
         resource.to_csv(csv_filename)
     return resource
 
