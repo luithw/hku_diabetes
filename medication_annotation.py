@@ -172,7 +172,7 @@ if __name__ == '__main__':
                 add_label(annotated, additional_label, position, 'category_name')
                 add_label(annotated, additional_label, position, 'trade_name')
                 add_label(annotated, additional_label, position, 'need_inspection')
-    assert len(annotated.loc[annotated['unique_id']==178]['generic_name'].iloc[0].split(", ")) == 2
+    # assert len(annotated.loc[annotated['unique_id']==178]['generic_name'].iloc[0].split(", ")) == 2
 
     unannotated_unique_id = set(unannotated['unique_id']) - set(annotated['unique_id'])
     unannotated = unannotated[unannotated['unique_id'].isin(unannotated_unique_id)]
