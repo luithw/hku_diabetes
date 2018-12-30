@@ -6,6 +6,7 @@ from hku_diabetes.analytics import Analyser
 from hku_diabetes.config import TestConfig
 from hku_diabetes.config import RunConfig
 from hku_diabetes.importer import import_all
+from hku_diabetes.medication_annotation import auto_annotate
 from hku_diabetes.plot import plot_all
 
 
@@ -16,6 +17,7 @@ def main():
     else:
         Config = TestConfig
     analyser = Analyser(config=Config)
+    auto_annotate(config=Config)
     try:
         analyser.load()
     except FileNotFoundError:
