@@ -19,42 +19,43 @@ INSPECTION_CATEGORY = ['Long acting nitrate']
 COMBINATION_WORDS = ['plus', 'hct']
 
 
-def add_label(annotated, additional_label, position, key):
+def add_additional_label(annotated, additional_label, position, key):
+    """Add the value of additional label to the annotated table at index position."""
     if key == 'need_inspection':
         annotated[key].iat[position] = annotated[key].iat[position] or additional_label[key]
     else:
         annotated[key].iat[position] = annotated[key].iat[position] + ', ' + additional_label[key]
 
+
 def match_trade_name(trade_name_tuple, medication, combination_drugs):
+    """Annotate the medication table with one trade name entry."""
     tic = time.time()
-    name = trade_name_tuple[1]['search_name']
-    name = re.sub('[\/]+', ' ', str(name))
-    name = re.sub('[^A-Za-z0-9\-]+', ' ', str(name))
-    name = re.sub('[\-]+', '', str(name))
-    name = name.lower()
+    search_name = trade_name_tuple[1]['search_name']
+    search_name = re.sub('[\/]+', ' ', str(search_name))
+    search_name = re.sub('[^A-Za-z0-9\-]+', ' ', str(search_name))
+    search_name = re.sub('[\-]+', '', str(search_name))
+    search_name = search_name.lower()
     generic_name = trade_name_tuple[0]    
     trade_name_row = trade_name_tuple[1]
     category_name = trade_name_row['category_name']    
     trade_name = trade_name_row['trade_name']
-    print("Annotating medication table with generic_name: %s and trade_name: %s" %(generic_name, name))
+    print("Annotating medication table with generic_name: %s and search_name: %s" %
+          (generic_name, search_name))
     matched_rows=[]
     need_inspection=[]
     for j, (med, unique_id) in enumerate(zip(medication['Drug Name'], medication['unique_id'])):
-        # med = re.sub('[\/]+', ' ', str(med))    
-        med = re.sub('[^A-Za-z0-9]+', ' ', str(med))
+        med = re.sub('[^A-Za-z0-9]+', ' ', str(med))    #Remove all non-alphabet characters
         med = re.sub('[\-]+', '', str(med))
         med = med.lower()
-        # if ((name == 'amlodpine' or name == 'valsartan') 
-        #     and unique_id == 6628) : breakpoint()
         matched = False
-        if len(name.split(" ")) > 1:
+        if len(search_name.split(" ")) > 1:
             matched = True
-            for word in name.split(" "):
+            for word in search_name.split(" "):
                 if word not in med.split(" "):
                     matched = False
                     break
         else:
-            if name in med.split(" "):
+            if search_name in med.split(" "):
                 matched = True
 
         if matched:
@@ -73,11 +74,15 @@ def match_trade_name(trade_name_tuple, medication, combination_drugs):
     annotated['category_name'] = category_name
     annotated['trade_name'] = trade_name
     annotated['need_inspection'] = need_inspection
-    print('Finished %s, time passed: %is' %(name, (time.time() - tic)))
+    print('Finished %s, time passed: %is' %(search_name, (time.time() - tic)))
     return annotated
 
 
 def auto_annotate(config=RunConfig):
+    """Automatically annotate medication entries with the generic name and durg category based 
+    on the trade name.
+    """
+
     tic = time.time()    
     drug_names = get_all_trade_names(RunConfig)
     # Add the generic names to be pretended to be trade name so that it can also be searched.
@@ -85,9 +90,10 @@ def auto_annotate(config=RunConfig):
     drug_names['search_name'] = [name.split(' ')[0] for name in drug_names['trade_name']]    
     generic_names_excel = pd.read_excel(
         "%s/Drug names.xlsx" % config.raw_data_path, sheet_name=None)    
+    # Add in the generic name itself as a search item among the trade names
     for sheet_name, generic_names in generic_names_excel.items():
         if sheet_name == "To notes":
-            # Ignore the To notes sheet
+            # Ignore the To notes sheet that does not contain valid generic names.
             continue
         for category_name in generic_names:    
             for i, generic_name in enumerate(generic_names[category_name]):
@@ -104,18 +110,19 @@ def auto_annotate(config=RunConfig):
     assert not drug_names.loc['Cilnidipine'].empty
 
     medication = import_resource('Medication', config=config)
-    unannotated = medication[['Drug Name', 'Route']].drop_duplicates()
-    unannotated['unique_id']=range(len(unannotated))
-    unannotated['category_name'] = None
-    unannotated['generic_name'] = None
-    unannotated['trade_name'] = None        
-    unannotated['need_inspection'] = False
+    medication = medication[['Drug Name', 'Route']].drop_duplicates()
+    medication['unique_id']=range(len(medication))
+    # Initialise the columns with None placeholders
+    medication['category_name'] = None
+    medication['generic_name'] = None
+    medication['trade_name'] = None
+    medication['need_inspection'] = False
     google_name = []
-    for i, name in enumerate(unannotated['Drug Name']):
+    for i, name in enumerate(medication['Drug Name']):
         google_name.append('=HYPERLINK("https://www.google.com.hk/search?q=%s","Google")' %name)
-    unannotated['Google'] = google_name
+    medication['Google'] = google_name
 
-    # Generate the COMBINATION_DRUGS list
+    # combination_drugs are drugs that have more than one generic drugs
     combination_drugs = []
     for word in COMBINATION_WORDS:
         for i, name in enumerate(drug_names['trade_name']):
@@ -128,40 +135,40 @@ def auto_annotate(config=RunConfig):
     if config is TestConfig:
         drug_names = drug_names[((drug_names['category_name'] == 'CCB') |
             (drug_names['category_name'] == 'Long acting nitrate'))]
-        # drug_names = drug_names.iloc[10:30]
 
     if config is TestConfig:
         matched_rows = []
         for trade_name_tuple in drug_names.iterrows():
-            matched_rows.append(match_trade_name(trade_name_tuple, unannotated, combination_drugs))
+            matched_rows.append(match_trade_name(trade_name_tuple, medication, combination_drugs))
         matched_multiple_annotations = pd.concat(matched_rows)            
     else:
         with ProcessPoolExecutor() as executor:
             matched_rows_gen = executor.map(match_trade_name,
                                                 drug_names.iterrows(),
-                                                itertools.repeat(unannotated),
+                                                itertools.repeat(medication),
                                                 itertools.repeat(combination_drugs))
         matched_multiple_annotations = pd.concat(list(matched_rows_gen))
         matched_multiple_annotations.drop_duplicates(inplace=True)
         
-    # Need to check for each row to combine medication with multiple annotations
+    #First crate a table with only unique entries of medication to allow multiple generic names labels to be added later.
     annotated = matched_multiple_annotations.drop_duplicates('unique_id')
+    # Now check for each row to combine medication with multiple annotations    
     for position, unique_id in enumerate(annotated['unique_id']):
         multiple_annotations = matched_multiple_annotations.loc[matched_multiple_annotations['unique_id']==unique_id]
         if len(multiple_annotations)>1:
-            # Add on the multiple annotations to the first row.
+            # Add on the multiple annotation labels to the first row.
             for i, (index, additional_label) in enumerate(multiple_annotations.iterrows()):
-                annotated[annotated['unique_id']==unique_id]['generic_name']
-                if i == 1:
-                    continue    # No need to add the label of the first row
-                add_label(annotated, additional_label, position, 'generic_name')
-                add_label(annotated, additional_label, position, 'category_name')
-                add_label(annotated, additional_label, position, 'trade_name')
-                add_label(annotated, additional_label, position, 'need_inspection')
+                if i == 0:
+                    # No need to add the label of the first row as it is already used
+                    continue
+                add_additional_label(annotated, additional_label, position, 'generic_name')
+                add_additional_label(annotated, additional_label, position, 'category_name')
+                add_additional_label(annotated, additional_label, position, 'trade_name')
+                add_additional_label(annotated, additional_label, position, 'need_inspection')
 
-    unannotated_unique_id = set(unannotated['unique_id']) - set(annotated['unique_id'])
-    unannotated = unannotated[unannotated['unique_id'].isin(unannotated_unique_id)]
-    need_inspection = annotated[annotated['need_inspection']==1]
+    unannotated_unique_id = set(medication['unique_id']) - set(annotated['unique_id'])
+    unannotated = medication[medication['unique_id'].isin(unannotated_unique_id)]
+    need_inspection = annotated[annotated['need_inspection'] == True]
     annotated = annotated[annotated['need_inspection'] == False]
 
     annotated.to_excel("%s/annotated_medication.xlsx" 
