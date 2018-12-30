@@ -19,7 +19,7 @@ INSPECTION_CATEGORY = ['Long acting nitrate']
 COMBINATION_WORDS = ['plus', 'hct']
 
 
-def add_additional_label(annotated, additional_label, position, key):
+def _add_additional_label(annotated, additional_label, position, key):
     """Add the value of additional label to the annotated table at index position."""
     if key == 'need_inspection':
         annotated[key].iat[position] = annotated[key].iat[position] or additional_label[key]
@@ -27,7 +27,7 @@ def add_additional_label(annotated, additional_label, position, key):
         annotated[key].iat[position] = annotated[key].iat[position] + ', ' + additional_label[key]
 
 
-def match_trade_name(trade_name_tuple, medication, combination_drugs):
+def _match_trade_name(trade_name_tuple, medication, combination_drugs):
     """Annotate the medication table with one trade name entry."""
     tic = time.time()
     search_name = trade_name_tuple[1]['search_name']
@@ -139,11 +139,11 @@ def auto_annotate(config=RunConfig):
     if config is TestConfig:
         matched_rows = []
         for trade_name_tuple in drug_names.iterrows():
-            matched_rows.append(match_trade_name(trade_name_tuple, medication, combination_drugs))
+            matched_rows.append(_match_trade_name(trade_name_tuple, medication, combination_drugs))
         matched_multiple_annotations = pd.concat(matched_rows)            
     else:
         with ProcessPoolExecutor() as executor:
-            matched_rows_gen = executor.map(match_trade_name,
+            matched_rows_gen = executor.map(_match_trade_name,
                                                 drug_names.iterrows(),
                                                 itertools.repeat(medication),
                                                 itertools.repeat(combination_drugs))
@@ -161,10 +161,10 @@ def auto_annotate(config=RunConfig):
                 if i == 0:
                     # No need to add the label of the first row as it is already used
                     continue
-                add_additional_label(annotated, additional_label, position, 'generic_name')
-                add_additional_label(annotated, additional_label, position, 'category_name')
-                add_additional_label(annotated, additional_label, position, 'trade_name')
-                add_additional_label(annotated, additional_label, position, 'need_inspection')
+                _add_additional_label(annotated, additional_label, position, 'generic_name')
+                _add_additional_label(annotated, additional_label, position, 'category_name')
+                _add_additional_label(annotated, additional_label, position, 'trade_name')
+                _add_additional_label(annotated, additional_label, position, 'need_inspection')
 
     unannotated_unique_id = set(medication['unique_id']) - set(annotated['unique_id'])
     unannotated = medication[medication['unique_id'].isin(unannotated_unique_id)]

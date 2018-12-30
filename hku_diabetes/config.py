@@ -133,7 +133,7 @@ class TestConfig(DefaultConfig):
     """
 
     # Paths
-    processed_data_path = "test_processed_data"
+    processed_data_path = "tmp/processed_data"
     """The path for storing processed data."""
     plot_path = "tmp/output/plots"
     """The path for exporting plot PDFs."""
