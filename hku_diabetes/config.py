@@ -135,7 +135,7 @@ class TestConfig(DefaultConfig):
     # Paths
     processed_data_path = "test_processed_data"
     """The path for storing processed data."""
-    plot_path = "test_output/plots"
+    plot_path = "tmp/output/plots"
     """The path for exporting plot PDFs."""
-    results_path = "test_output/results"
+    results_path = "tmp/output/results"
     """The path for exporting results CSV and intermediate pickles."""
