@@ -79,106 +79,96 @@ def match_trade_name(trade_name_tuple, medication, combination_drugs):
 
 def auto_annotate(config=RunConfig):
     tic = time.time()    
+    drug_names = get_all_trade_names(RunConfig)
+    # Add the generic names to be pretended to be trade name so that it can also be searched.
+    drug_names['generic_name'] = drug_names.index
+    drug_names['search_name'] = [name.split(' ')[0] for name in drug_names['trade_name']]    
+    generic_names_excel = pd.read_excel(
+        "%s/Drug names.xlsx" % config.raw_data_path, sheet_name=None)    
+    for sheet_name, generic_names in generic_names_excel.items():
+        if sheet_name == "To notes":
+            # Ignore the To notes sheet
+            continue
+        for category_name in generic_names:    
+            for i, generic_name in enumerate(generic_names[category_name]):
+                if isinstance(generic_name, str):
+                    drug_names = drug_names.append({
+                        'trade_name':generic_name,
+                        'generic_name':generic_name,
+                        'category_name': category_name,
+                        'search_name': generic_name
+                        }, ignore_index=True)
+    drug_names.set_index('generic_name', drop=False, inplace = True)
+    drug_names.drop_duplicates(['search_name', 'category_name'], inplace=True)
 
-    try:
-        annotated = pd.read_csv("%s/annotated_medication.csv" 
-            %config.processed_data_path, index_col=0)
-        unannotated = pd.read_csv("%s/unannotated_medication.csv" 
-            %config.processed_data_path, index_col=0)
-        need_inspection = pd.read_csv("%s/need_inspection_medication.csv" 
-            %config.processed_data_path, index_col=0)
+    assert not drug_names.loc['Cilnidipine'].empty
 
-    except IOError:
-        drug_names = get_all_trade_names(RunConfig)
-        # Add the generic names to be pretended to be trade name so that it can also be searched.
-        drug_names['generic_name'] = drug_names.index
-        drug_names['search_name'] = [name.split(' ')[0] for name in drug_names['trade_name']]    
-        generic_names_excel = pd.read_excel(
-            "%s/Drug names.xlsx" % config.raw_data_path, sheet_name=None)    
-        for sheet_name, generic_names in generic_names_excel.items():
-            if sheet_name == "To notes":
-                # Ignore the To notes sheet
-                continue
-            for category_name in generic_names:    
-                for i, generic_name in enumerate(generic_names[category_name]):
-                    if isinstance(generic_name, str):
-                        drug_names = drug_names.append({
-                            'trade_name':generic_name,
-                            'generic_name':generic_name,
-                            'category_name': category_name,
-                            'search_name': generic_name
-                            }, ignore_index=True)
-        drug_names.set_index('generic_name', drop=False, inplace = True)
-        drug_names.drop_duplicates(['search_name', 'category_name'], inplace=True)
+    medication = import_resource('Medication', config=config)
+    unannotated = medication[['Drug Name', 'Route']].drop_duplicates()
+    unannotated['unique_id']=range(len(unannotated))
+    unannotated['category_name'] = None
+    unannotated['generic_name'] = None
+    unannotated['trade_name'] = None        
+    unannotated['need_inspection'] = False
+    google_name = []
+    for i, name in enumerate(unannotated['Drug Name']):
+        google_name.append('=HYPERLINK("https://www.google.com.hk/search?q=%s","Google")' %name)
+    unannotated['Google'] = google_name
 
-        assert not drug_names.loc['Cilnidipine'].empty
+    # Generate the COMBINATION_DRUGS list
+    combination_drugs = []
+    for word in COMBINATION_WORDS:
+        for i, name in enumerate(drug_names['trade_name']):
+            name = re.sub('[^A-Za-z0-9]+', ' ', str(name))
+            name = re.sub('[\-]+', '', str(name))     
+            name = name.lower()   
+            if word in name.split():
+                combination_drugs.append(drug_names.iloc[i]['search_name'])                       
 
-        medication = import_resource('Medication', config=config)
-        unannotated = medication[['Drug Name', 'Route']].drop_duplicates()
-        unannotated['unique_id']=range(len(unannotated))
-        unannotated['category_name'] = None
-        unannotated['generic_name'] = None
-        unannotated['trade_name'] = None        
-        unannotated['need_inspection'] = False
-        google_name = []
-        for i, name in enumerate(unannotated['Drug Name']):
-            google_name.append('=HYPERLINK("https://www.google.com.hk/search?q=%s","Google")' %name)
-        unannotated['Google'] = google_name
+    if config is TestConfig:
+        drug_names = drug_names[((drug_names['category_name'] == 'CCB') |
+            (drug_names['category_name'] == 'Long acting nitrate'))]
+        # drug_names = drug_names.iloc[10:30]
 
-        # Generate the COMBINATION_DRUGS list
-        combination_drugs = []
-        for word in COMBINATION_WORDS:
-            for i, name in enumerate(drug_names['trade_name']):
-                name = re.sub('[^A-Za-z0-9]+', ' ', str(name))
-                name = re.sub('[\-]+', '', str(name))     
-                name = name.lower()   
-                if word in name.split():
-                    combination_drugs.append(drug_names.iloc[i]['search_name'])                       
+    if config is TestConfig:
+        matched_rows = []
+        for trade_name_tuple in drug_names.iterrows():
+            matched_rows.append(match_trade_name(trade_name_tuple, unannotated, combination_drugs))
+        matched_multiple_annotations = pd.concat(matched_rows)            
+    else:
+        with ProcessPoolExecutor() as executor:
+            matched_rows_gen = executor.map(match_trade_name,
+                                                drug_names.iterrows(),
+                                                itertools.repeat(unannotated),
+                                                itertools.repeat(combination_drugs))
+        matched_multiple_annotations = pd.concat(list(matched_rows_gen))
+        matched_multiple_annotations.drop_duplicates(inplace=True)
+        
+    # Need to check for each row to combine medication with multiple annotations
+    annotated = matched_multiple_annotations.drop_duplicates('unique_id')
+    for position, unique_id in enumerate(annotated['unique_id']):
+        multiple_annotations = matched_multiple_annotations.loc[matched_multiple_annotations['unique_id']==unique_id]
+        if len(multiple_annotations)>1:
+            # Add on the multiple annotations to the first row.
+            for i, (index, additional_label) in enumerate(multiple_annotations.iterrows()):
+                annotated[annotated['unique_id']==unique_id]['generic_name']
+                if i == 1:
+                    continue    # No need to add the label of the first row
+                add_label(annotated, additional_label, position, 'generic_name')
+                add_label(annotated, additional_label, position, 'category_name')
+                add_label(annotated, additional_label, position, 'trade_name')
+                add_label(annotated, additional_label, position, 'need_inspection')
 
-        if config is TestConfig:
-            drug_names = drug_names[((drug_names['category_name'] == 'CCB') |
-                (drug_names['category_name'] == 'Long acting nitrate'))]
-            # drug_names = drug_names.iloc[10:30]
+    unannotated_unique_id = set(unannotated['unique_id']) - set(annotated['unique_id'])
+    unannotated = unannotated[unannotated['unique_id'].isin(unannotated_unique_id)]
+    need_inspection = annotated[annotated['need_inspection']==1]
+    annotated = annotated[annotated['need_inspection'] == False]
 
-        if config is TestConfig:
-            matched_rows = []
-            for trade_name_tuple in drug_names.iterrows():
-                matched_rows.append(match_trade_name(trade_name_tuple, unannotated, combination_drugs))
-            matched_multiple_annotations = pd.concat(matched_rows)            
-        else:
-            with ProcessPoolExecutor() as executor:
-                matched_rows_gen = executor.map(match_trade_name,
-                                                    drug_names.iterrows(),
-                                                    itertools.repeat(unannotated),
-                                                    itertools.repeat(combination_drugs))
-            matched_multiple_annotations = pd.concat(list(matched_rows_gen))
-            matched_multiple_annotations.drop_duplicates(inplace=True)
-            
-        # Need to check for each row to combine medication with multiple annotations
-        annotated = matched_multiple_annotations.drop_duplicates('unique_id')
-        for position, unique_id in enumerate(annotated['unique_id']):
-            multiple_annotations = matched_multiple_annotations.loc[matched_multiple_annotations['unique_id']==unique_id]
-            if len(multiple_annotations)>1:
-                # Add on the multiple annotations to the first row.
-                for i, (index, additional_label) in enumerate(multiple_annotations.iterrows()):
-                    annotated[annotated['unique_id']==unique_id]['generic_name']
-                    if i == 1:
-                        continue    # No need to add the label of the first row
-                    add_label(annotated, additional_label, position, 'generic_name')
-                    add_label(annotated, additional_label, position, 'category_name')
-                    add_label(annotated, additional_label, position, 'trade_name')
-                    add_label(annotated, additional_label, position, 'need_inspection')
+    annotated.to_excel("%s/annotated_medication.xlsx" 
+        %config.processed_data_path)
+    unannotated.to_excel("%s/unannotated_medication.xlsx" 
+        %config.processed_data_path)
+    need_inspection.to_excel("%s/need_inspection_medication.xlsx" 
+        %config.processed_data_path)
 
-        unannotated_unique_id = set(unannotated['unique_id']) - set(annotated['unique_id'])
-        unannotated = unannotated[unannotated['unique_id'].isin(unannotated_unique_id)]
-        need_inspection = annotated[annotated['need_inspection']==1]
-        annotated = annotated[annotated['need_inspection'] == False]
-
-        annotated.to_excel("%s/annotated_medication.xlsx" 
-            %config.processed_data_path)
-        unannotated.to_excel("%s/unannotated_medication.xlsx" 
-            %config.processed_data_path)
-        need_inspection.to_excel("%s/need_inspection_medication.xlsx" 
-            %config.processed_data_path)
-
-        print('Finished all annotation, time passed: %is' %(time.time() - tic))
+    print('Finished all annotation, time passed: %is' %(time.time() - tic))
