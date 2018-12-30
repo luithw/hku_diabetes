@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 """Script to call the package scrapper.
 """
-import numpy as np
+from concurrent.futures import ProcessPoolExecutor
 import itertools
-import pandas as pd
+import os
 import re
 import sys
 import time
 
-from concurrent.futures import ProcessPoolExecutor
+import pandas as pd
+import numpy as np
 
 from hku_diabetes.scraper import get_all_trade_names
 from hku_diabetes.config import RunConfig
@@ -25,6 +26,14 @@ def _add_additional_label(annotated, additional_label, position, key):
         annotated[key].iat[position] = annotated[key].iat[position] or additional_label[key]
     else:
         annotated[key].iat[position] = annotated[key].iat[position] + ', ' + additional_label[key]
+
+
+def _get_category_set(all_annotations):
+    category_names = []
+    for ann in all_annotations.iterrows():
+        for category in ann[1]['category_name'].split(", "):
+            category_names.append(category)
+    return set(category_names) 
 
 
 def _match_trade_name(trade_name_tuple, medication, combination_drugs):
@@ -78,18 +87,49 @@ def _match_trade_name(trade_name_tuple, medication, combination_drugs):
     return annotated
 
 
-def auto_annotate(config=RunConfig):
+def annotate_records(config=RunConfig):
+    """Take the annotation table and annotate the medication records.
+    """
+    tic = time.time()
+    annotated = pd.read_excel(os.path.join(config.raw_data_path, "edited",
+                                           "annotated_medication.xlsx"))
+    unannotated_medication = pd.read_excel(os.path.join(config.raw_data_path, "edited",
+                                           "unannotated_medication.xlsx"))
+    need_inspection_medication = pd.read_excel(os.path.join(config.raw_data_path, "edited",
+                                           "need_inspection_medication.xlsx"))
+    unannotated_medication = unannotated_medication.loc[unannotated_medication['Edited']==1]
+    all_annotations = pd.concat([annotated, unannotated_medication, need_inspection_medication])
+    category_set = _get_category_set(all_annotations)
+    medication = import_resource('Medication', config=config)
+    for category in category_set:
+        medication[category] = False
+    if config == TestConfig:
+        all_annotations = all_annotations.iloc[:5]
+    for ann in all_annotations.iterrows():
+        select = medication['Drug Name']==ann[1]['Drug Name']
+        for category in ann[1]['category_name'].split(", "):
+            medication[category][select] = True
+    for category in category_set:
+        print("Annotated %i rows for category %s" %
+            (np.sum(medication[category]), category))
+    if config != TestConfig:        
+        medication.to_csv(os.path.join(config.processed_data_path, 'medication.csv'))
+    print('Finished all medication annotations, time passed: %is' %(time.time() - tic))
+    return medication
+
+
+def make_annotation_table(config=RunConfig):
     """Automatically annotate medication entries with the generic name and durg category based 
-    on the trade name.
+    on the trade name, and saves the unique entries as excel.
     """
 
-    tic = time.time()    
-    drug_names = get_all_trade_names(RunConfig)
+    tic = time.time()
+    drug_names = get_all_trade_names(config)
     # Add the generic names to be pretended to be trade name so that it can also be searched.
     drug_names['generic_name'] = drug_names.index
     drug_names['search_name'] = [name.split(' ')[0] for name in drug_names['trade_name']]    
     generic_names_excel = pd.read_excel(
-        "%s/Drug names.xlsx" % config.raw_data_path, sheet_name=None)    
+        "%s/Drug names.xlsx" % config.raw_data_path, sheet_name=None)
     # Add in the generic name itself as a search item among the trade names
     for sheet_name, generic_names in generic_names_excel.items():
         if sheet_name == "To notes":
@@ -178,4 +218,4 @@ def auto_annotate(config=RunConfig):
     need_inspection.to_excel("%s/need_inspection_medication.xlsx" 
         %config.processed_data_path)
 
-    print('Finished all annotation, time passed: %is' %(time.time() - tic))
+    print('Finished creating annotation table, time passed: %is' %(time.time() - tic))
