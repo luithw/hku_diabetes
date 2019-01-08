@@ -187,7 +187,6 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
     Creatinine = data['Creatinine'].loc[[patient_id]].sort_values('Datetime')
     Hba1C = data['Hba1C'].loc[[patient_id]].sort_values('Datetime')
     medication = data['Medication'].loc[[patient_id]].sort_values('Prescription Start Date')
-    prescriptions = get_continuous_prescriptions(medication, config)
     Creatinine = remove_duplicate(Creatinine)
     Hba1C = remove_duplicate(Hba1C)
 
@@ -232,6 +231,10 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
     inverse_regression = np.poly1d(
         np.polyfit(Creatinine_LP['eGFR'], cumulative_Hba1C, 1))
     subject_data = OrderedDict()
+
+
+    prescriptions = get_continuous_prescriptions(medication, Creatinine, config)
+
     subject_data['patient_id'] = patient_id
     subject_data['prescriptions'] = prescriptions
     subject_data['Creatinine'] = Creatinine
@@ -277,25 +280,33 @@ def find_time_range(Creatinine_time: np.ndarray,
     return time_range
 
 
-def get_continuous_prescriptions(medication, config):
+def get_continuous_prescriptions(medication, Creatinine, config):
     """Reduce medication entries to the number of continuous prescriptions."""
     available_drug_categories = medication.columns[21:]
-    prescriptions = []
+    continuous_prescriptions = []
     for category in available_drug_categories:
-        prescription = medication.loc[medication[category]]
-        if len(prescription) > 0:
-            prescription_start = pd.to_datetime(prescription['Prescription Start Date'])
-            prescription_end = pd.to_datetime(prescription['Prescription End Date'])
+        prescriptions = medication.loc[medication[category]]
+        if len(prescriptions) > 0:
+            if category == 'DDP4i':
+                low_eGFR = Creatinine[Creatinine['eGFR'] < 45]
+                if not low_eGFR.empty:
+                    cut_off = low_eGFR['Datetime'].iloc[0]
+                    prescriptions = prescriptions[pd.to_datetime(prescriptions['Prescription End Date']) < cut_off]
+                    if len(prescriptions) == 0:
+                        continue
+            prescription_start = pd.to_datetime(prescriptions['Prescription Start Date'])
+            prescription_end = pd.to_datetime(prescriptions['Prescription End Date'])
             prescription_gap = prescription_start[1:] - prescription_end[:-1]
             is_discontinuous = prescription_gap.dt.days > config.max_continuous_prescription_gap
             continuous_prescription_start = prescription_start[[True] + is_discontinuous.tolist()]
             continuous_prescription_end = prescription_start[is_discontinuous.tolist() + [True]]
-            prescriptions.append({'category': category,
-                                  'name': prescription['Drug Name'].iloc[0],
-                                  'start': continuous_prescription_start,
-                                  'end': continuous_prescription_end})
-    prescriptions = pd.DataFrame(prescriptions)
-    return prescriptions
+            for start, end in zip(continuous_prescription_start, continuous_prescription_end):
+                continuous_prescriptions.append({'category': category,
+                                      'name': prescriptions['Drug Name'].iloc[0],
+                                      'start': start,
+                                      'end': end})
+    continuous_prescriptions = pd.DataFrame(continuous_prescriptions)
+    return continuous_prescriptions
 
 
 def dropna(data: Dict[str, pd.DataFrame]):
