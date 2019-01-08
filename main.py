@@ -15,11 +15,7 @@ if __name__ == '__main__':
         config = RunConfig
     else:
         config = TestConfig
-    annotate_records(config=config)
+    # annotate_records(config=config)
     analyser = analytics.Analyser(config=config)
-    try:
-        analyser.load()
-    except FileNotFoundError:
-        data = importer.import_all(config=config)
-        analyser.regression(data)
-    plot_all(analyser)
+    data = importer.import_all(config=config)
+    analyser.regression(data)

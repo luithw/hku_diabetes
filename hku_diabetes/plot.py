@@ -12,6 +12,7 @@ from decimal import Decimal
 from typing import Text
 
 import matplotlib
+matplotlib.use('Agg')  # Need to execute this before importing plt
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
@@ -22,7 +23,6 @@ from scipy.interpolate import pchip_interpolate
 from .analytics import Analyser
 from .analytics import find_time_range
 
-matplotlib.use('Agg')  # Need to execute this before importing plt
 warnings.filterwarnings("ignore")
 fig, ax1 = plt.subplots()
 

@@ -104,7 +104,7 @@ def annotate_records(config=RunConfig):
     for category in category_set:
         medication[category] = False
     if config == TestConfig:
-        all_annotations = all_annotations.iloc[:5]
+        all_annotations = all_annotations.iloc[:1000]
     for ann in all_annotations.iterrows():
         select = medication['Drug Name']==ann[1]['Drug Name']
         for category in ann[1]['category_name'].split(", "):

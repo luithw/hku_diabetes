@@ -32,6 +32,9 @@ class DefaultConfig:
     starting_eGFR = 60
     """The starting eGFR of analysis"""
 
+    max_continuous_prescription_gap = 30
+    """The maximum number of days between prescriptions for them to be considered continuous."""
+
     # Medication annotation
     annotation_batch_size = 64
     """The number of trade names to be matched per batch of paralle process"""
@@ -108,7 +111,7 @@ class TestConfig(DefaultConfig):
     """
 
     # Analytics
-    test_samples = 10
+    test_samples = 100
     """The number of samples analysed by the analytics module.
 
     This allows faster testing time as there is no need to analyse all the data.

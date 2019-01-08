@@ -130,11 +130,17 @@ class Analyser:
         patient_ids = data['Creatinine'].index.unique().sort_values()
         if self.config is TestConfig:
             patient_ids = patient_ids[:self.config.test_samples]
-        with ProcessPoolExecutor() as executor:
-            subject_data = executor.map(analyse_subject,
-                                                itertools.repeat(data),
-                                                patient_ids,
-                                                itertools.repeat(self.config))
+            subject_data = []
+            for i, patient_id in enumerate(patient_ids):
+                subject_data.append(analyse_subject(data, patient_id, self.config))
+                if subject_data[-1]:
+                    print("Processing subject %i, prescriptions: %i" % (i, len(subject_data[-1]['prescriptions'])))
+        else:
+            with ProcessPoolExecutor() as executor:
+                subject_data = executor.map(analyse_subject,
+                                                    itertools.repeat(data),
+                                                    patient_ids,
+                                                    itertools.repeat(self.config))
         self.subject_data = [x for x in subject_data if x is not None]
         self.patient_ids = [x['patient_id'] for x in self.subject_data]
         self.results['regression'] = pd.DataFrame(
@@ -180,6 +186,8 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
     """
     Creatinine = data['Creatinine'].loc[[patient_id]].sort_values('Datetime')
     Hba1C = data['Hba1C'].loc[[patient_id]].sort_values('Datetime')
+    medication = data['Medication'].loc[[patient_id]].sort_values('Prescription Start Date')
+    prescriptions = get_continuous_prescriptions(medication, config)
     Creatinine = remove_duplicate(Creatinine)
     Hba1C = remove_duplicate(Hba1C)
 
@@ -225,6 +233,7 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
         np.polyfit(Creatinine_LP['eGFR'], cumulative_Hba1C, 1))
     subject_data = OrderedDict()
     subject_data['patient_id'] = patient_id
+    subject_data['prescriptions'] = prescriptions
     subject_data['Creatinine'] = Creatinine
     subject_data['Hba1C'] = Hba1C
     subject_data['regression'] = linregress(cumulative_Hba1C,
@@ -266,6 +275,27 @@ def find_time_range(Creatinine_time: np.ndarray,
         latest_startime, earliest_endtime,
         (earliest_endtime - latest_startime) / config.interpolation_samples)
     return time_range
+
+
+def get_continuous_prescriptions(medication, config):
+    """Reduce medication entries to the number of continuous prescriptions."""
+    available_drug_categories = medication.columns[21:]
+    prescriptions = []
+    for category in available_drug_categories:
+        prescription = medication.loc[medication[category]]
+        if len(prescription) > 0:
+            prescription_start = pd.to_datetime(prescription['Prescription Start Date'])
+            prescription_end = pd.to_datetime(prescription['Prescription End Date'])
+            prescription_gap = prescription_start[1:] - prescription_end[:-1]
+            is_discontinuous = prescription_gap.dt.days > config.max_continuous_prescription_gap
+            continuous_prescription_start = prescription_start[[True] + is_discontinuous.tolist()]
+            continuous_prescription_end = prescription_start[is_discontinuous.tolist() + [True]]
+            prescriptions.append({'category': category,
+                                  'name': prescription['Drug Name'].iloc[0],
+                                  'start': continuous_prescription_start,
+                                  'end': continuous_prescription_end})
+    prescriptions = pd.DataFrame(prescriptions)
+    return prescriptions
 
 
 def dropna(data: Dict[str, pd.DataFrame]):
