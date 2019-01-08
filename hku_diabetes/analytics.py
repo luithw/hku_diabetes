@@ -302,9 +302,9 @@ def get_continuous_prescriptions(medication, Creatinine, config):
             continuous_prescription_end = prescription_start[is_discontinuous.tolist() + [True]]
             for start, end in zip(continuous_prescription_start, continuous_prescription_end):
                 continuous_prescriptions.append({'category': category,
-                                      'name': prescriptions['Drug Name'].iloc[0],
-                                      'start': start,
-                                      'end': end})
+                                                 'name': prescriptions['Drug Name'].iloc[0],
+                                                 'start': start,
+                                                 'end': end})
     continuous_prescriptions = pd.DataFrame(continuous_prescriptions)
     return continuous_prescriptions
 
