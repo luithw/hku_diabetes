@@ -9,7 +9,7 @@ from hku_diabetes.config import RunConfig
 from hku_diabetes.config import TestConfig
 
 if __name__ == '__main__':
-    if 'run' in sys.argv:
+    if 'regression' in sys.argv:
         config = RunConfig
     else:
         config = TestConfig

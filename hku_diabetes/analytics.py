@@ -30,33 +30,33 @@ class Analyser:
 
     This class implements the main execution sequence of the HKU diabetes
     regression analysis. It saves the results of the regression and CKD
-    thresholds as csv, and all other intermediate steps as pickle.
+    thresholds as csv, and all other subject_data steps as pickle.
 
     Args:
         config: Configuration class, default to DefaultConfig.
 
     Attributes:
         patient_ids: A list of valid patient IDs analysed.
-        intermediate: A dictionary of all objects in intermediate steps.
+        intermediate: A dictionary of all objects in subject_data steps.
         results: A dictionary containing regression results and ckd values.
     """
 
     def __init__(self, *, config: Type[DefaultConfig] = DefaultConfig):
         self.config = config
         self.patient_ids = []
-        self.intermediate = {}
+        self.subject_data = {}
         self.results = {'regression': pd.DataFrame(), 'ckd': pd.DataFrame()}
 
     def _save(self):
         """Save analytics results to file.
 
-        This should only be called by the run method.
+        This should only be called by the regression method.
         """
         if not os.path.exists(self.config.results_path):
             os.makedirs(self.config.results_path)
-        with open('%s/intermediate.pickle' % self.config.results_path,
+        with open('%s/subject_data.pickle' % self.config.results_path,
                   'wb') as file:
-            pickle.dump(self.intermediate, file, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.subject_data, file, pickle.HIGHEST_PROTOCOL)
         for key, item in self.results.items():
             item = item.dropna()
             item.index = self.patient_ids
@@ -84,24 +84,24 @@ class Analyser:
             >>>     results = analyser.load()
             >>> except FileNotFoundError:
             >>>     data = import_all()
-            >>>     results = analyser.run(data)
+            >>>     results = analyser.regression(data)
         """
         try:
-            with open('%s/intermediate.pickle' % self.config.results_path,
+            with open('%s/subject_data.pickle' % self.config.results_path,
                       'rb') as file:
-                self.intermediate = pickle.load(file)
+                self.subject_data = pickle.load(file)
         except FileNotFoundError as e:
             print("No results files are found in config.results_path")
             raise e
         else:
-            self.patient_ids = [x['patient_id'] for x in self.intermediate]
+            self.patient_ids = [x['patient_id'] for x in self.subject_data]
             for key in self.results:
                 self.results[key] = pd.read_csv(
                     "%s/%s.csv" % (self.config.results_path, key), index_col=0)
             print("Finished loading analyser data")
         return self.results
 
-    def run(self, data: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
+    def regression(self, data: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
         """Execute the main date analytics sequence.
 
         Call this method to execute the actual data analytics.
@@ -121,7 +121,7 @@ class Analyser:
             >>> analytics.evaluate_eGFR(data)
             >>> analyser = Analyser()
             >>> data = import_all()
-            >>> results = analyser.run(data)
+            >>> results = analyser.regression(data)
         """
         tic = time.time()
         dropna(data)
@@ -131,16 +131,16 @@ class Analyser:
         if self.config is TestConfig:
             patient_ids = patient_ids[:self.config.test_samples]
         with ProcessPoolExecutor() as executor:
-            intermediate_results = executor.map(analyse_subject,
+            subject_data = executor.map(analyse_subject,
                                                 itertools.repeat(data),
                                                 patient_ids,
                                                 itertools.repeat(self.config))
-        self.intermediate = [x for x in intermediate_results if x is not None]
-        self.patient_ids = [x['patient_id'] for x in self.intermediate]
+        self.subject_data = [x for x in subject_data if x is not None]
+        self.patient_ids = [x['patient_id'] for x in self.subject_data]
         self.results['regression'] = pd.DataFrame(
-            [x['regression'] for x in self.intermediate])
+            [x['regression'] for x in self.subject_data])
         self.results['ckd'] = pd.DataFrame(
-            [x['ckd'] for x in self.intermediate],
+            [x['ckd'] for x in self.subject_data],
             columns=self.config.ckd_thresholds)
         self._save()
         print('Finished analysis, time passed: %is' % (time.time() - tic))
@@ -153,7 +153,7 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
     """Compute the regression result and ckd values for one subject.
 
     This function takes the data of one subject and compute its corresponding
-    regression results and ckd values. It is called by Analyser.run via a
+    regression results and ckd values. It is called by Analyser.regression via a
     ProcessPoolExecutor. It checks if either the Creatinine or Hb1aC has the
     minimum number of rows required by config.min_analysis_samples, and returns
     None if fails.
@@ -167,7 +167,7 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
 
     Returns:
         Either None or a dictionary of results including regression and ckd,
-        as well as intermediate steps including patient_id, Creatinine,
+        as well as subject_data steps including patient_id, Creatinine,
         Hba1C, regression, ckd, Creatinine_LP, and cumulative_Hba1C.
 
     Example:
@@ -176,7 +176,7 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
         >>> data = import_all()
         >>> analytics.evaluate_eGFR(data)
         >>> patient_id = 802
-        >>> intermediate = analytics.analyse_subject(data, patient_id)
+        >>> subject_data = analytics.analyse_subject(data, patient_id)
     """
     Creatinine = data['Creatinine'].loc[[patient_id]].sort_values('Datetime')
     Hba1C = data['Hba1C'].loc[[patient_id]].sort_values('Datetime')
@@ -223,16 +223,16 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
                                          Creatinine_LP_time)
     inverse_regression = np.poly1d(
         np.polyfit(Creatinine_LP['eGFR'], cumulative_Hba1C, 1))
-    intermediate = OrderedDict()
-    intermediate['patient_id'] = patient_id
-    intermediate['Creatinine'] = Creatinine
-    intermediate['Hba1C'] = Hba1C
-    intermediate['regression'] = linregress(cumulative_Hba1C,
+    subject_data = OrderedDict()
+    subject_data['patient_id'] = patient_id
+    subject_data['Creatinine'] = Creatinine
+    subject_data['Hba1C'] = Hba1C
+    subject_data['regression'] = linregress(cumulative_Hba1C,
                                             Creatinine_LP['eGFR'])
-    intermediate['ckd'] = inverse_regression(config.ckd_thresholds)
-    intermediate['Creatinine_LP'] = Creatinine_LP
-    intermediate['cumulative_Hba1C'] = cumulative_Hba1C
-    return intermediate
+    subject_data['ckd'] = inverse_regression(config.ckd_thresholds)
+    subject_data['Creatinine_LP'] = Creatinine_LP
+    subject_data['cumulative_Hba1C'] = cumulative_Hba1C
+    return subject_data
 
 
 def find_time_range(Creatinine_time: np.ndarray,

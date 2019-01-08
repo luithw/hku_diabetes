@@ -13,8 +13,6 @@ from typing import Text
 
 import matplotlib
 import numpy as np
-
-matplotlib.use('Agg')  # Need to execute this before importing plt
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.dates import date2num
@@ -24,6 +22,7 @@ from scipy.interpolate import pchip_interpolate
 from .analytics import Analyser
 from .analytics import find_time_range
 
+matplotlib.use('Agg')  # Need to execute this before importing plt
 warnings.filterwarnings("ignore")
 fig, ax1 = plt.subplots()
 
@@ -31,11 +30,11 @@ fig, ax1 = plt.subplots()
 def plot_all(analyser: Analyser):
     """Plots all required PDFs.
 
-    This calls the plot_one function and plot all the required PDFs
+    This calls the plot_mode function and plot all the required PDFs
     specified by analyser.config.plot_modes.
 
     Args:
-        analyser: An instance of the Analyser class with intermediate
+        analyser: An instance of the Analyser class with subject_data
             data available.
 
     Example:
@@ -46,10 +45,10 @@ def plot_all(analyser: Analyser):
         >>> plot_all(analyser)
     """
     for mode in analyser.config.plot_modes:
-        plot_one(analyser, mode)
+        plot_mode(analyser, mode)
 
 
-def plot_one(analyser: Analyser, mode: Text):
+def plot_mode(analyser: Analyser, mode: Text):
     """Plot one PDF according to required mode.
 
     This calls the corresponding private plot functions and plot the
@@ -57,16 +56,16 @@ def plot_one(analyser: Analyser, mode: Text):
     something is happening.
 
     Args:
-        analyser: An instance of the Analyser class with intermediate
+        analyser: An instance of the Analyser class with subject_data
             data available.
         mode: The plot mode required
 
     Example:
         >>> from hku_diabetes.analytics import Analyser
-        >>> from hku_diabetes.plot import plot_one
+        >>> from hku_diabetes.plot import plot_mode
         >>> analyser = Analyser()
         >>> results = analyser.load()
-        >>> plot_one(analyser, 'raw')
+        >>> plot_mode(analyser, 'raw')
     """
     tic = time.time()
     if not os.path.exists(analyser.config.plot_path):
@@ -142,9 +141,9 @@ def _plot_ckd_distributions(analyser: Analyser):
 
 
 def _plot_raw(analyser: Analyser, index: int):
-    patient_id = analyser.intermediate[index]['patient_id']
-    Creatinine = analyser.intermediate[index]['Creatinine']
-    Hba1C = analyser.intermediate[index]['Hba1C']
+    patient_id = analyser.subject_data[index]['patient_id']
+    Creatinine = analyser.subject_data[index]['Creatinine']
+    Hba1C = analyser.subject_data[index]['Hba1C']
     fig.suptitle(patient_id)
     ax1 = plt.gca()
     ax1.plot(
@@ -167,10 +166,10 @@ def _plot_raw(analyser: Analyser, index: int):
 
 
 def _plot_low_pass(analyser: Analyser, index: int):
-    patient_id = analyser.intermediate[index]['patient_id']
-    Creatinine = analyser.intermediate[index]['Creatinine']
-    Hba1C = analyser.intermediate[index]['Hba1C']
-    Creatinine_LP = analyser.intermediate[index]['Creatinine_LP']
+    patient_id = analyser.subject_data[index]['patient_id']
+    Creatinine = analyser.subject_data[index]['Creatinine']
+    Hba1C = analyser.subject_data[index]['Hba1C']
+    Creatinine_LP = analyser.subject_data[index]['Creatinine_LP']
     fig.suptitle(patient_id)
     ax1 = plt.gca()
     ax1.plot(
@@ -198,9 +197,9 @@ def _plot_low_pass(analyser: Analyser, index: int):
 
 
 def _plot_interpolated(analyser: Analyser, index: int):
-    patient_id = analyser.intermediate[index]['patient_id']
-    Creatinine = analyser.intermediate[index]['Creatinine']
-    Hba1C = analyser.intermediate[index]['Hba1C']
+    patient_id = analyser.subject_data[index]['patient_id']
+    Creatinine = analyser.subject_data[index]['Creatinine']
+    Hba1C = analyser.subject_data[index]['Hba1C']
     Creatinine_x = date2num(Creatinine['Datetime'])
     Hba1C_x = date2num(Hba1C['Datetime'])
     time_range = find_time_range(Creatinine_x, Hba1C_x, analyser.config)
@@ -236,9 +235,9 @@ def _plot_interpolated(analyser: Analyser, index: int):
 
 
 def _plot_cumulative(analyser: Analyser, index: int):
-    patient_id = analyser.intermediate[index]['patient_id']
-    Creatinine = analyser.intermediate[index]['Creatinine']
-    Hba1C = analyser.intermediate[index]['Hba1C']
+    patient_id = analyser.subject_data[index]['patient_id']
+    Creatinine = analyser.subject_data[index]['Creatinine']
+    Hba1C = analyser.subject_data[index]['Hba1C']
     Creatinine_x = date2num(Creatinine['Datetime'])
     Hba1C_x = date2num(Hba1C['Datetime'])
     time_range = find_time_range(Creatinine_x, Hba1C_x, analyser.config)
@@ -264,9 +263,9 @@ def _plot_cumulative(analyser: Analyser, index: int):
 
 
 def _plot_regression(analyser: Analyser, index: int):
-    patient_id = analyser.intermediate[index]['patient_id']
-    x = analyser.intermediate[index]['cumulative_Hba1C']
-    y = analyser.intermediate[index]['Creatinine_LP']['eGFR']
+    patient_id = analyser.subject_data[index]['patient_id']
+    x = analyser.subject_data[index]['cumulative_Hba1C']
+    y = analyser.subject_data[index]['Creatinine_LP']['eGFR']
     regression = analyser.results['regression'].iloc[index]
     fig.suptitle(patient_id)
     plt.scatter(x, y)

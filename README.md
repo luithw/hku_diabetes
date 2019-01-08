@@ -36,10 +36,10 @@ python main.py
 
 The first time it is executed, it loads the raw data in inefficient html format and saves them as CSV in the `processed_data` directory, so that it loads faster the next time. 
 
-If the above command is executed without error. Simply add `run` after the previous command. It will then execute on the entire dataset.
+If the above command is executed without error. Simply add `regression` after the previous command. It will then execute on the entire dataset.
 
 ```sh
-python main.py run
+python main.py regression
 ```
 
 ## Use the package in your script
@@ -59,10 +59,10 @@ from hku_diabetes.analytics import Analyser
 analyser = Analyser()
 ```
 
-The `run` method of `Analyser` takes the data and compute the results. It also saves the results in the `output/plot` directory automatically.
+The `regression` method of `Analyser` takes the data and compute the results. It also saves the results in the `output/plot` directory automatically.
 
 ```python
-results = analyser.run(data)
+results = analyser.regression(data)
 ```
 
 You can plot all the data and results using the `plot_all` function.
@@ -91,7 +91,7 @@ class MyConfig(DefaultConfig):
     eGFR_low_pass = "90d" 
 
 data = import_all(config=MyConfig)
-results = analyser.run(data, config=MyConfig)
+results = analyser.regression(data, config=MyConfig)
 ```
 
 For a full list of available configuration options and functions, please see the [documentation](https://hku-diabetes.readthedocs.io/en/latest/hku_diabetes.html).

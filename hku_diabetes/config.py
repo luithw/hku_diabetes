@@ -79,7 +79,7 @@ class DefaultConfig:
     plot_path = "output/plots"
     """The path for exporting plot PDFs."""
     results_path = "output/results"
-    """The path for exporting results CSV and intermediate pickles."""
+    """The path for exporting results CSV and subject_data pickles."""
 
 
 class RunConfig(DefaultConfig):
@@ -115,12 +115,11 @@ class TestConfig(DefaultConfig):
     """
 
     # Importer
-    required_resources = ["Creatinine", "Hba1C", "Demographic"]
-    """The resources to be loaded by importer.
+    required_resources = [
+        "Creatinine", "Hba1C", "Medication", "Demographic"
+    ]
+    """The resources to be loaded by importer."""
 
-    As the current analytics only support Creatinine and Hba1C, there is no
-    need to load the other resources.
-    """
     # Medication annotation
     annotation_batch_size = 8
     """The number of trade names to be matched per batch of paralle process"""
@@ -138,4 +137,4 @@ class TestConfig(DefaultConfig):
     plot_path = "tmp/output/plots"
     """The path for exporting plot PDFs."""
     results_path = "tmp/output/results"
-    """The path for exporting results CSV and intermediate pickles."""
+    """The path for exporting results CSV and subject_data pickles."""

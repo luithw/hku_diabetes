@@ -28,7 +28,7 @@ def test_analytics():
         shutil.rmtree(TestConfig.results_path)
     data = import_all(config=TestConfig)
     analyser = Analyser(config=TestConfig)
-    results = analyser.run(data)
+    results = analyser.regression(data)
     assert not results['regression'].empty
     assert not results['ckd'].empty
     assert os.path.exists("%s/regression.csv" % TestConfig.results_path)

@@ -112,8 +112,7 @@ def annotate_records(config=RunConfig):
     for category in category_set:
         print("Annotated %i rows for category %s" %
             (np.sum(medication[category]), category))
-    if config != TestConfig:        
-        medication.to_csv(os.path.join(config.processed_data_path, 'medication.csv'))
+    medication.to_csv(os.path.join(config.processed_data_path, 'Medication.csv'))
     print('Finished all medication annotations, time passed: %is' %(time.time() - tic))
     return medication
 
