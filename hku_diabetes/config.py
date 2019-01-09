@@ -35,6 +35,27 @@ class DefaultConfig:
     max_continuous_prescription_gap = 30
     """The maximum number of days between prescriptions for them to be considered continuous."""
 
+    diagnosis_code = {
+        'myocardial infarction': [410, 411.1, 411.89],
+        'ischemic stroke': [433, 434, 435, 436],
+        'hemorrhagic stroke': [430, 431, 432],
+        'heart failure': [398.91, 428],
+        'hypertension': [401, 405],
+        'ischemic heart disease': [410, 411, 412, 414.0, 414.8, 414.9],
+        'peripheral vascular disease': [440.2],
+        'atrial fibrillation': [427.3],
+        'pancreatitis': [577.0, 577.1],
+        'diabetic ketoacidosis': [250.1],
+        'urinary tract infection': [599.0],
+        'dialysis': ['V45.1', 'V56.0', 'V56.8']
+    }
+    """The ICD9 diagnosis code of different diagnosis. https://en.wikipedia.org/wiki/List_of_ICD-9_codes_390–459"""
+
+    procedure_code = {
+        'amputation': [84.0, 84.91],
+        'dialysis': [39.95, 54.98]
+    }
+
     # Medication annotation
     annotation_batch_size = 64
     """The number of trade names to be matched per batch of paralle process"""
@@ -119,7 +140,7 @@ class TestConfig(DefaultConfig):
 
     # Importer
     required_resources = [
-        "Creatinine", "Hba1C", "Medication", "Demographic"
+        "Creatinine", "Hba1C", "Medication", "Demographic", "Diagnosis"
     ]
     """The resources to be loaded by importer."""
 

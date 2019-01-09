@@ -5,6 +5,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import decimal
 import itertools
 import os
 import pickle
@@ -190,6 +191,12 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
     Creatinine = remove_duplicate(Creatinine)
     Hba1C = remove_duplicate(Hba1C)
     demographic = data['Demographic'].loc[[patient_id]]
+    diagnosis = data['Diagnosis'].loc[[patient_id]].sort_values('Reference Date')
+    diagnosis = convert_diagnosis_code(diagnosis, config)
+
+    if np.sum(diagnosis['disease'] == 'dialysis'):
+        # Exclude patients on dialysis, as their creatinine does not represent intrinsic eGFR.
+        return None
 
     if len(Creatinine) < config.min_analysis_samples or len(
             Hba1C) < config.min_analysis_samples:
@@ -239,6 +246,7 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
     subject_data['patient_id'] = patient_id
     subject_data['date of death'] = demographic['DOD']
     subject_data['prescriptions'] = prescriptions
+    subject_data['diagnosis'] = diagnosis
     subject_data['Creatinine'] = Creatinine
     subject_data['Hba1C'] = Hba1C
     subject_data['regression'] = linregress(cumulative_Hba1C,
@@ -282,6 +290,32 @@ def find_time_range(Creatinine_time: np.ndarray,
     return time_range
 
 
+def convert_diagnosis_code(diagnosis, config):
+    has_E = diagnosis['All Diagnosis Code (ICD9)'].str.contains('E', regex=False)   # Some diagnosis code is not numeric
+    diagnosis = diagnosis[has_E == False]
+    has_V = diagnosis['All Diagnosis Code (ICD9)'].str.contains('V', regex=False)   # Some diagnosis code is not numeric
+    diagnosis['code'] = pd.to_numeric(diagnosis['All Diagnosis Code (ICD9)'].str.strip('V'))
+    decoded_diagnosis = []
+    for disease, diagnosis_codes in config.diagnosis_code.items():
+        for code in diagnosis_codes:
+            if type(code) is str:
+                code = float(code.strip('V'))
+                candidate = diagnosis[has_V]
+            else:
+                candidate = diagnosis[has_V == False]
+            decimal_point = -1 * decimal.Decimal(str(code)).as_tuple().exponent
+            match_code = np.floor(candidate['code'] * 10**decimal_point) == code * 10**decimal_point
+            matched_diagnosis = candidate[match_code]
+            for i, row in matched_diagnosis.iterrows():
+                decoded_diagnosis.append({
+                    'disease': disease,
+                    'code': row['code'],
+                    'date': row['Reference Date']
+                })
+    decoded_diagnosis = pd.DataFrame(decoded_diagnosis, columns=['disease', 'code', 'date']).sort_values('date')
+    return decoded_diagnosis
+
+
 def get_continuous_prescriptions(medication, Creatinine, config):
     """Reduce medication entries to the number of continuous prescriptions."""
     available_drug_categories = medication.columns[21:]
@@ -307,7 +341,8 @@ def get_continuous_prescriptions(medication, Creatinine, config):
                                                  'name': prescriptions['Drug Name'].iloc[0],
                                                  'start': start,
                                                  'end': end})
-    continuous_prescriptions = pd.DataFrame(continuous_prescriptions).sort_values('start')
+    continuous_prescriptions = pd.DataFrame(continuous_prescriptions,
+                                            columns=['category', 'name', 'start', 'end']).sort_values('start')
     for category in available_drug_categories:
         continuous_prescriptions['concurrent %s' % category] = False
     for i, prescription in continuous_prescriptions.iterrows():
