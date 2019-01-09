@@ -135,6 +135,4 @@ def _cleaning(data: dict):
             resource['Value'] = resource['LIS Result: Numeric Result']
         if resource_name in ("Creatinine", "Hba1C"):
             data[resource_name] = resource[['Datetime', 'Value']]
-        if resource_name == "Demographic":
-            data[resource_name] = resource[['DOB', 'Sex']]
     return

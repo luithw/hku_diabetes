@@ -189,6 +189,7 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
     medication = data['Medication'].loc[[patient_id]].sort_values('Prescription Start Date')
     Creatinine = remove_duplicate(Creatinine)
     Hba1C = remove_duplicate(Hba1C)
+    demographic = data['Demographic'].loc[[patient_id]]
 
     if len(Creatinine) < config.min_analysis_samples or len(
             Hba1C) < config.min_analysis_samples:
@@ -236,6 +237,7 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
     prescriptions = get_continuous_prescriptions(medication, Creatinine, config)
 
     subject_data['patient_id'] = patient_id
+    subject_data['date of death'] = demographic['DOD']
     subject_data['prescriptions'] = prescriptions
     subject_data['Creatinine'] = Creatinine
     subject_data['Hba1C'] = Hba1C
