@@ -305,7 +305,15 @@ def get_continuous_prescriptions(medication, Creatinine, config):
                                                  'name': prescriptions['Drug Name'].iloc[0],
                                                  'start': start,
                                                  'end': end})
-    continuous_prescriptions = pd.DataFrame(continuous_prescriptions)
+    continuous_prescriptions = pd.DataFrame(continuous_prescriptions).sort_values('start')
+    for category in available_drug_categories:
+        continuous_prescriptions['concurrent %s' % category] = False
+    for i, prescription in continuous_prescriptions.iterrows():
+        for j, match in continuous_prescriptions.iterrows():
+            if prescription['category']==match['category']:
+                continue
+            if prescription['start'] < match['start'] < prescription['end']:
+                continuous_prescriptions.loc[i, 'concurrent %s' % match['category']] = True
     return continuous_prescriptions
 
 
