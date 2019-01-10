@@ -192,9 +192,12 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
     Hba1C = remove_duplicate(Hba1C)
     demographic = data['Demographic'].loc[[patient_id]]
     diagnosis = data['Diagnosis'].loc[[patient_id]].sort_values('Reference Date')
-    diagnosis = convert_diagnosis_code(diagnosis, config)
+    procedure = data['Procedure'].loc[[patient_id]].sort_values('Procedure Date (yyyy-mm-dd)')
 
-    if np.sum(diagnosis['disease'] == 'dialysis'):
+    diagnosis = convert_code(diagnosis, 'All Diagnosis Code (ICD9)', 'Reference Date', config.diagnosis_code)
+    procedure = convert_code(procedure, 'All Procedure Code', 'Procedure Date (yyyy-mm-dd)', config.procedure_code)
+
+    if np.sum(diagnosis['disease'] == 'dialysis') or np.sum(procedure['disease'] == 'dialysis'):
         # Exclude patients on dialysis, as their creatinine does not represent intrinsic eGFR.
         return None
 
@@ -247,6 +250,7 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
     subject_data['date of death'] = demographic['DOD']
     subject_data['prescriptions'] = prescriptions
     subject_data['diagnosis'] = diagnosis
+    subject_data['procedure'] = procedure
     subject_data['Creatinine'] = Creatinine
     subject_data['Hba1C'] = Hba1C
     subject_data['regression'] = linregress(cumulative_Hba1C,
@@ -290,30 +294,37 @@ def find_time_range(Creatinine_time: np.ndarray,
     return time_range
 
 
-def convert_diagnosis_code(diagnosis, config):
-    has_E = diagnosis['All Diagnosis Code (ICD9)'].str.contains('E', regex=False)   # Some diagnosis code is not numeric
-    diagnosis = diagnosis[has_E == False]
-    has_V = diagnosis['All Diagnosis Code (ICD9)'].str.contains('V', regex=False)   # Some diagnosis code is not numeric
-    diagnosis['code'] = pd.to_numeric(diagnosis['All Diagnosis Code (ICD9)'].str.strip('V'))
-    decoded_diagnosis = []
-    for disease, diagnosis_codes in config.diagnosis_code.items():
-        for code in diagnosis_codes:
+def convert_code(items, code_key, date_key, mapping):
+    """Convert all procedure or convert_code code to general categories"""
+    if items[code_key].dtype == 'O':
+      has_E = items[code_key].str.contains('E', regex=False)   # Some diagnosis or procedure code is not numeric
+      items = items[has_E == False]
+      has_V = items[code_key].str.contains('V', regex=False)   # Some diagnosis or procedure code is not numeric
+      items['code'] = pd.to_numeric(items[code_key].str.strip('V'))
+    else:
+      items['code'] = items[code_key]
+    decoded_items = []
+    for disease, item_codes in mapping.items():
+        for code in item_codes:
             if type(code) is str:
                 code = float(code.strip('V'))
-                candidate = diagnosis[has_V]
+                candidates = items[has_V]
             else:
-                candidate = diagnosis[has_V == False]
+                if items[code_key].dtype == 'O':
+                    candidates = items[has_V == False]
+                else:
+                    candidates = items
             decimal_point = -1 * decimal.Decimal(str(code)).as_tuple().exponent
-            match_code = np.floor(candidate['code'] * 10**decimal_point) == code * 10**decimal_point
-            matched_diagnosis = candidate[match_code]
-            for i, row in matched_diagnosis.iterrows():
-                decoded_diagnosis.append({
+            match_code = np.floor(candidates['code'] * 10**decimal_point) == code * 10**decimal_point
+            matched_items = candidates[match_code]
+            for i, row in matched_items.iterrows():
+                decoded_items.append({
                     'disease': disease,
                     'code': row['code'],
-                    'date': row['Reference Date']
+                    'date': row[date_key]
                 })
-    decoded_diagnosis = pd.DataFrame(decoded_diagnosis, columns=['disease', 'code', 'date']).sort_values('date')
-    return decoded_diagnosis
+    decoded_items = pd.DataFrame(decoded_items, columns=['disease', 'code', 'date']).sort_values('date')
+    return decoded_items
 
 
 def get_continuous_prescriptions(medication, Creatinine, config):

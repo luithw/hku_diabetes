@@ -140,7 +140,7 @@ class TestConfig(DefaultConfig):
 
     # Importer
     required_resources = [
-        "Creatinine", "Hba1C", "Medication", "Demographic", "Diagnosis"
+        "Creatinine", "Hba1C", "Medication", "Demographic", "Diagnosis", "Procedure"
     ]
     """The resources to be loaded by importer."""
 
