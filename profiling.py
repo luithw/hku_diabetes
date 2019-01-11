@@ -29,7 +29,7 @@ def main():
     """Main sequence"""
     analyser = Analyser(config=ProfilingConfig)
     data = import_all(config=ProfilingConfig)
-    analyser.regression(data)
+    analyser.run(data)
     del analyser
     del data    
     profiler = Profile()

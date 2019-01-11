@@ -11,11 +11,11 @@ from hku_diabetes.plot import plot_all
 
 
 if __name__ == '__main__':
-    if "regression" in sys.argv:
+    if "run" in sys.argv:
         config = RunConfig
     else:
         config = TestConfig
     # annotate_records(config=config)
     analyser = analytics.Analyser(config=config)
     data = importer.import_all(config=config)
-    analyser.regression(data)
+    analyser.run(data)

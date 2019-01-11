@@ -30,7 +30,7 @@ class Analyser:
     """Execute core analytics logic.
 
     This class implements the main execution sequence of the HKU diabetes
-    regression analysis. It saves the results of the regression and CKD
+    run analysis. It saves the results of the run and CKD
     thresholds as csv, and all other subject_data steps as pickle.
 
     Args:
@@ -39,7 +39,7 @@ class Analyser:
     Attributes:
         patient_ids: A list of valid patient IDs analysed.
         intermediate: A dictionary of all objects in subject_data steps.
-        results: A dictionary containing regression results and ckd values.
+        results: A dictionary containing run results and ckd values.
     """
 
     def __init__(self, *, config: Type[DefaultConfig] = DefaultConfig):
@@ -51,7 +51,7 @@ class Analyser:
     def _save(self):
         """Save analytics results to file.
 
-        This should only be called by the regression method.
+        This should only be called by the run method.
         """
         if not os.path.exists(self.config.results_path):
             os.makedirs(self.config.results_path)
@@ -85,7 +85,7 @@ class Analyser:
             >>>     results = analyser.load()
             >>> except FileNotFoundError:
             >>>     data = import_all()
-            >>>     results = analyser.regression(data)
+            >>>     results = analyser.run(data)
         """
         try:
             with open('%s/subject_data.pickle' % self.config.results_path,
@@ -102,7 +102,7 @@ class Analyser:
             print("Finished loading analyser data")
         return self.results
 
-    def regression(self, data: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
+    def run(self, data: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
         """Execute the main date analytics sequence.
 
         Call this method to execute the actual data analytics.
@@ -122,7 +122,7 @@ class Analyser:
             >>> analytics.evaluate_eGFR(data)
             >>> analyser = Analyser()
             >>> data = import_all()
-            >>> results = analyser.regression(data)
+            >>> results = analyser.run(data)
         """
         tic = time.time()
         dropna(data)
@@ -149,10 +149,16 @@ class Analyser:
         self.results['ckd'] = pd.DataFrame(
             [x['ckd'] for x in self.subject_data],
             columns=self.config.ckd_thresholds)
+        self.group_analysis()
         self._save()
         print('Finished analysis, time passed: %is' % (time.time() - tic))
         return self.results
 
+
+    def group_analysis(self):
+        for subject in self.subject_data:
+            if 'SGLT2i' in subject['prescriptions']['category'].tolist():
+                import pdb; pdb.set_trace()
 
 def analyse_subject(data: Dict[str, pd.DataFrame],
                     patient_id: int,
@@ -197,7 +203,7 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
     diagnosis = convert_code(diagnosis, 'All Diagnosis Code (ICD9)', 'Reference Date', config.diagnosis_code)
     procedure = convert_code(procedure, 'All Procedure Code', 'Procedure Date (yyyy-mm-dd)', config.procedure_code)
 
-    if np.sum(diagnosis['disease'] == 'dialysis') or np.sum(procedure['disease'] == 'dialysis'):
+    if 'dialysis' in diagnosis['name'].tolist() or 'dialysis' in procedure['name'].tolist():
         # Exclude patients on dialysis, as their creatinine does not represent intrinsic eGFR.
         return None
 
@@ -304,7 +310,7 @@ def convert_code(items, code_key, date_key, mapping):
     else:
       items['code'] = items[code_key]
     decoded_items = []
-    for disease, item_codes in mapping.items():
+    for name, item_codes in mapping.items():
         for code in item_codes:
             if type(code) is str:
                 code = float(code.strip('V'))
@@ -319,11 +325,11 @@ def convert_code(items, code_key, date_key, mapping):
             matched_items = candidates[match_code]
             for i, row in matched_items.iterrows():
                 decoded_items.append({
-                    'disease': disease,
+                    'name': name,
                     'code': row['code'],
                     'date': row[date_key]
                 })
-    decoded_items = pd.DataFrame(decoded_items, columns=['disease', 'code', 'date']).sort_values('date')
+    decoded_items = pd.DataFrame(decoded_items, columns=['name', 'code', 'date']).sort_values('date')
     return decoded_items
 
 

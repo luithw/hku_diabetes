@@ -71,7 +71,7 @@ class DefaultConfig:
 
     # Plots
     plot_modes = [
-        "regression_distributions", "regression", "cumulative", "low_pass",
+        "regression_distributions", "run", "cumulative", "low_pass",
         "interpolated", "raw"
     ]
     """The type of plots to be created."""
@@ -119,11 +119,11 @@ class RunConfig(DefaultConfig):
     """
 
     # plots
-    # plot_modes = ["regression_distributions", "regression"]
+    # plot_modes = ["regression_distributions", "run"]
     """The type of plots to be created.
 
     As it takes a lot of time to generate all the raw plots, only plot the
-    regression distributions.
+    run distributions.
     """
 
 
