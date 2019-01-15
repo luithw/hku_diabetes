@@ -163,18 +163,24 @@ class Analyser:
         # selected = self.select_group(target='DDP4i')
         # selected = self.select_group(target='SGLT2i', exclude='DDP4i')
         # selected = self.select_group(target='DDP4i', exclude='SGLT2i')
+        selected = self.select_group(target='DDP4i', low_init_eGFR=False)
         import pdb; pdb.set_trace()
 
     def select_group(self, target, exclude=None, low_init_eGFR=True):
         selected = []
         for subject in self.subject_data:
             need_include = target in subject['prescriptions']['category'].tolist()
-            if need_include and exclude is not None:
-                target_prescription = subject['prescriptions'][subject['prescriptions']['category']==target]
-                need_exclude = np.any(target_prescription['concurrent %s' % exclude])
-                print("target: %s, exclude: %s, need_exclude:%s" %(target, exclude, need_exclude))
-            else:
-                need_exclude = False
+            if need_include:
+                target_prescription = subject['prescriptions'][subject['prescriptions']['category'] == target]
+                if exclude is not None:
+                    need_exclude = np.any(target_prescription['concurrent %s' % exclude])
+                    print("target: %s, exclude: %s, need_exclude:%s" %(target, exclude, need_exclude))
+                else:
+                    need_exclude = False
+                if not low_init_eGFR:
+                    init = subject['Creatinine'].iloc[0]
+                    if init['eGFR'] <= 45 and init['Datetime'] < target_prescription['start'].iloc[0]:
+                        need_exclude = True
             if need_include and not need_exclude:
                 selected.append(subject)
         return selected
