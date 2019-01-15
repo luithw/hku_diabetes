@@ -125,10 +125,13 @@ class Analyser:
             >>> results = analyser.run(data)
         """
         tic = time.time()
-        dropna(data)
-        intersect(data)
+        patient_ids = data['Creatinine'].index.unique().sort_values()
+        print("patient_ids before intersecting: %i" %len(patient_ids))
+        dropna(data, self.config)
+        intersect(data, self.config)
         evaluate_eGFR(data)
         patient_ids = data['Creatinine'].index.unique().sort_values()
+        print("patient_ids after intersecting: %i" %len(patient_ids))
         if self.config is TestConfig:
             patient_ids = patient_ids[:self.config.test_samples]
             subject_data = []
@@ -156,9 +159,18 @@ class Analyser:
 
 
     def group_analysis(self):
+        # selected = self.select_group(primary='SGLT2i')
+        # selected = self.select_group(primary='DDP4i')
+        # selected = self.select_group(primary='SGLT2i', exclude='DDP4i')
+        selected = self.select_group(primary='DDP4i', exclude='SGLT2i')
+        import pdb; pdb.set_trace()
+
+    def select_group(self, primary, exclude=None, low_init_eGFR=True):
+        selected = []
         for subject in self.subject_data:
-            if 'SGLT2i' in subject['prescriptions']['category'].tolist():
-                print(subject)
+            if primary in subject['prescriptions']['category'].tolist():
+                selected.append(subject)
+        return selected
 
 def analyse_subject(data: Dict[str, pd.DataFrame],
                     patient_id: int,
@@ -373,7 +385,7 @@ def get_continuous_prescriptions(medication, Creatinine, config):
     return continuous_prescriptions
 
 
-def dropna(data: Dict[str, pd.DataFrame]):
+def dropna(data: Dict[str, pd.DataFrame], config: Type[DefaultConfig] = DefaultConfig):
     """Calls dropna of all DataFrames in the data dictionary
 
     Args:
@@ -386,7 +398,7 @@ def dropna(data: Dict[str, pd.DataFrame]):
         >>> data = import_all()
         >>> analytics.dropna(data)
     """
-    for key in data:
+    for key in config.must_have_resources:
         data[key] = data[key].dropna()
 
 
@@ -428,7 +440,7 @@ def evaluate_eGFR(data: Dict[str, pd.DataFrame]):
                (-1.154)) * (Age**(-0.203)) * (0.742 if Sex is 'F' else 1))
 
 
-def intersect(data: Dict[str, pd.DataFrame]):
+def intersect(data: Dict[str, pd.DataFrame], config: Type[DefaultConfig] = DefaultConfig):
     """Finds the intersects of unique patients from each DataFrame.
 
     Args:
@@ -441,11 +453,13 @@ def intersect(data: Dict[str, pd.DataFrame]):
         >>> data = import_all()
         >>> analytics.intersect(data)
     """
-    for resource_name, resource in data.items():
+    for resource_name in config.must_have_resources:
+        resource = data[resource_name]
         try:
             unique_patient_ids = set(resource.index) & unique_patient_ids
         except NameError:
             unique_patient_ids = set(resource.index)
+        print("%s: %i" %(resource_name, len(unique_patient_ids)))
     for resource_name, resource in data.items():
         data[resource_name] = resource.loc[unique_patient_ids]
 

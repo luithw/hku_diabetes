@@ -30,8 +30,8 @@ def _add_additional_label(annotated, additional_label, position, key):
 
 def _get_category_set(all_annotations):
     category_names = []
-    for ann in all_annotations.iterrows():
-        for category in ann[1]['category_name'].split(", "):
+    for i, ann in all_annotations.iterrows():
+        for category in ann['category_name'].split(", "):
             category_names.append(category)
     return set(category_names) 
 
@@ -105,9 +105,9 @@ def annotate_records(config=RunConfig):
         medication[category] = False
     if config == TestConfig:
         all_annotations = all_annotations.iloc[:2000]
-    for ann in all_annotations.iterrows():
-        select = medication['Drug Name']==ann[1]['Drug Name']
-        for category in ann[1]['category_name'].split(", "):
+    for i, ann in all_annotations.iterrows():
+        select = medication['Drug Name']==ann['Drug Name']
+        for category in ann['category_name'].split(", "):
             medication[category][select] = True
     for category in category_set:
         print("Annotated %i rows for category %s" %

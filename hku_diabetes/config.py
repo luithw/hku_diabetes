@@ -80,7 +80,8 @@ class DefaultConfig:
         "Creatinine", "Hba1C", "Medication", "Diagnosis", "Procedure", "HDL",
         "LDL", "Demographic"
     ]
-    """The resources to be loaded by importer."""
+    must_have_resources = ["Creatinine", "Hba1C", "Demographic"]
+    """The resources that each patient must have."""
 
     # Plots
     plot_modes = [
@@ -145,17 +146,11 @@ class TestConfig(DefaultConfig):
     """
 
     # Analytics
-    test_samples = 100
+    test_samples = 500
     """The number of samples analysed by the analytics module.
 
     This allows faster testing time as there is no need to analyse all the data.
     """
-
-    # Importer
-    required_resources = [
-        "Creatinine", "Hba1C", "LDL", "Medication", "Demographic", "Diagnosis", "Procedure"
-    ]
-    """The resources to be loaded by importer."""
 
     # Medication annotation
     annotation_batch_size = 8
