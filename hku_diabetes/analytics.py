@@ -157,14 +157,19 @@ class Analyser:
         print('Finished analysis, time passed: %is' % (time.time() - tic))
         return self.results
 
-
     def group_analysis(self):
-        # selected = self.select_group(target='SGLT2i')
-        # selected = self.select_group(target='DDP4i')
-        # selected = self.select_group(target='SGLT2i', exclude='DDP4i')
-        # selected = self.select_group(target='DDP4i', exclude='SGLT2i')
+        selected = self.select_group(target='SGLT2i')
+        print("Selected subjects: %i" %len(selected))
+        selected = self.select_group(target='DDP4i')
+        print("Selected subjects: %i" %len(selected))
+        selected = self.select_group(target='SGLT2i', exclude='DDP4i')
+        print("Selected subjects: %i" %len(selected))
+        selected = self.select_group(target='DDP4i', exclude='SGLT2i')
+        print("Selected subjects: %i" %len(selected))
         selected = self.select_group(target='DDP4i', low_init_eGFR=False)
-        import pdb; pdb.set_trace()
+        print("Selected subjects: %i" %len(selected))
+        selected = self.select_group(target='DDP4i', exclude='SGLT2i', low_init_eGFR=False)
+        print("Selected subjects: %i" %len(selected))
 
     def select_group(self, target, exclude=None, low_init_eGFR=True):
         selected = []
@@ -174,7 +179,6 @@ class Analyser:
                 target_prescription = subject['prescriptions'][subject['prescriptions']['category'] == target]
                 if exclude is not None:
                     need_exclude = np.any(target_prescription['concurrent %s' % exclude])
-                    print("target: %s, exclude: %s, need_exclude:%s" %(target, exclude, need_exclude))
                 else:
                     need_exclude = False
                 if not low_init_eGFR:
