@@ -146,7 +146,7 @@ class TestConfig(DefaultConfig):
     """
 
     # Analytics
-    test_samples = 500
+    test_samples = 300
     """The number of samples analysed by the analytics module.
 
     This allows faster testing time as there is no need to analyse all the data.

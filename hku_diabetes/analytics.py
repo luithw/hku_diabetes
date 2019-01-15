@@ -161,8 +161,8 @@ class Analyser:
     def group_analysis(self):
         # selected = self.select_group(primary='SGLT2i')
         # selected = self.select_group(primary='DDP4i')
-        # selected = self.select_group(primary='SGLT2i', exclude='DDP4i')
-        selected = self.select_group(primary='DDP4i', exclude='SGLT2i')
+        selected = self.select_group(primary='SGLT2i', exclude='DDP4i')
+        # selected = self.select_group(primary='DDP4i', exclude='SGLT2i')
         import pdb; pdb.set_trace()
 
     def select_group(self, primary, exclude=None, low_init_eGFR=True):
@@ -398,7 +398,7 @@ def dropna(data: Dict[str, pd.DataFrame], config: Type[DefaultConfig] = DefaultC
         >>> data = import_all()
         >>> analytics.dropna(data)
     """
-    for key in config.must_have_resources:
+    for key in ["Creatinine", "Hba1C"]:
         data[key] = data[key].dropna()
 
 
