@@ -159,16 +159,23 @@ class Analyser:
 
 
     def group_analysis(self):
-        # selected = self.select_group(primary='SGLT2i')
-        # selected = self.select_group(primary='DDP4i')
-        selected = self.select_group(primary='SGLT2i', exclude='DDP4i')
-        # selected = self.select_group(primary='DDP4i', exclude='SGLT2i')
+        # selected = self.select_group(target='SGLT2i')
+        # selected = self.select_group(target='DDP4i')
+        # selected = self.select_group(target='SGLT2i', exclude='DDP4i')
+        # selected = self.select_group(target='DDP4i', exclude='SGLT2i')
         import pdb; pdb.set_trace()
 
-    def select_group(self, primary, exclude=None, low_init_eGFR=True):
+    def select_group(self, target, exclude=None, low_init_eGFR=True):
         selected = []
         for subject in self.subject_data:
-            if primary in subject['prescriptions']['category'].tolist():
+            need_include = target in subject['prescriptions']['category'].tolist()
+            if need_include and exclude is not None:
+                target_prescription = subject['prescriptions'][subject['prescriptions']['category']==target]
+                need_exclude = np.any(target_prescription['concurrent %s' % exclude])
+                print("target: %s, exclude: %s, need_exclude:%s" %(target, exclude, need_exclude))
+            else:
+                need_exclude = False
+            if need_include and not need_exclude:
                 selected.append(subject)
         return selected
 
