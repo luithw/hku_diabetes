@@ -158,7 +158,7 @@ class Analyser:
     def group_analysis(self):
         for subject in self.subject_data:
             if 'SGLT2i' in subject['prescriptions']['category'].tolist():
-                import pdb; pdb.set_trace()
+                print(subject)
 
 def analyse_subject(data: Dict[str, pd.DataFrame],
                     patient_id: int,
@@ -193,12 +193,13 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
     """
     Creatinine = data['Creatinine'].loc[[patient_id]].sort_values('Datetime')
     Hba1C = data['Hba1C'].loc[[patient_id]].sort_values('Datetime')
+    LDL = data['LDL'].loc[[patient_id]].sort_values('Datetime')
     medication = data['Medication'].loc[[patient_id]].sort_values('Prescription Start Date')
-    Creatinine = remove_duplicate(Creatinine)
-    Hba1C = remove_duplicate(Hba1C)
     demographic = data['Demographic'].loc[[patient_id]]
     diagnosis = data['Diagnosis'].loc[[patient_id]].sort_values('Reference Date')
     procedure = data['Procedure'].loc[[patient_id]].sort_values('Procedure Date (yyyy-mm-dd)')
+    Creatinine = remove_duplicate(Creatinine)
+    Hba1C = remove_duplicate(Hba1C)
 
     diagnosis = convert_code(diagnosis, 'All Diagnosis Code (ICD9)', 'Reference Date', config.diagnosis_code)
     procedure = convert_code(procedure, 'All Procedure Code', 'Procedure Date (yyyy-mm-dd)', config.procedure_code)
@@ -259,6 +260,7 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
     subject_data['procedure'] = procedure
     subject_data['Creatinine'] = Creatinine
     subject_data['Hba1C'] = Hba1C
+    subject_data['LDL'] = LDL
     subject_data['regression'] = linregress(cumulative_Hba1C,
                                             Creatinine_LP['eGFR'])
     subject_data['ckd'] = inverse_regression(config.ckd_thresholds)

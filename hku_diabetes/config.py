@@ -36,18 +36,31 @@ class DefaultConfig:
     """The maximum number of days between prescriptions for them to be considered continuous."""
 
     diagnosis_code = {
-        'myocardial infarction': [410, 411.1, 411.89],
+        'CKD I-V': [585],
+        'CKD I': [585.1],
+        'CKD II': [585.2],
+        'CKD IIII': [585.3],
+        'CKD IV': [585.4],
+        'CKD V': [585.5],
+        'ESRF': [585.6],
+        'CKD NOS': [585.9],
+        'fracture': [800, 801, 802, 803, 804, 805, 806, 807, 808, 809,
+                     810, 811, 812, 813, 814, 815, 816, 817, 818, 819,
+                     820, 821, 822, 823, 824, 825, 826, 827, 828, 829,
+                     733.1],
+        'MI': [410, 411.1, 411.89],
         'ischemic stroke': [433, 434, 435, 436],
-        'hemorrhagic stroke': [430, 431, 432],
-        'heart failure': [398.91, 428],
-        'hypertension': [401, 405],
-        'ischemic heart disease': [410, 411, 412, 414.0, 414.8, 414.9],
-        'peripheral vascular disease': [440.2],
-        'atrial fibrillation': [427.3],
+        'hemorrhagic stroke (spontaneous and traumatic)': [430, 431, 432, 852, 853],
+        'HF': [398.91, 428],
+        'HT': [401, 405],
+        'IHD': [410, 411, 412, 414.0, 414.8, 414.9],
+        'PVD': [440.2],
+        'AF': [427.3, 250.1],
         'pancreatitis': [577.0, 577.1],
-        'diabetic ketoacidosis': [250.1],
-        'urinary tract infection': [599.0],
-        'dialysis': ['V45.1', 'V56.0', 'V56.8']
+        'DM': [249, 250],
+        'DKA': [250.1],
+        'UTI': [599.0],
+        'dialysis': ['V45.1', 'V56.0', 'V56.8', 39.95, 54.98]
     }
     """The ICD9 diagnosis code of different diagnosis. https://en.wikipedia.org/wiki/List_of_ICD-9_codes_390–459"""
 
@@ -140,7 +153,7 @@ class TestConfig(DefaultConfig):
 
     # Importer
     required_resources = [
-        "Creatinine", "Hba1C", "Medication", "Demographic", "Diagnosis", "Procedure"
+        "Creatinine", "Hba1C", "LDL", "Medication", "Demographic", "Diagnosis", "Procedure"
     ]
     """The resources to be loaded by importer."""
 
