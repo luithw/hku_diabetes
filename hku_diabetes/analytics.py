@@ -172,16 +172,28 @@ class Analyser:
         selected = self.analyse_group(target='DDP4i', exclude='SGLT2i', low_init_eGFR=False)
         print("Selected subjects: %i" %len(selected))
 
-    def baseline_characteristics(self, subjects, group_name):
+    def subject_profiles(self, subjects, time, group_name):
+        if time == "init":
+            position = 0
+        if time == "final":
+            position = -1
         for subject in subjects:
             profile = pd.DataFrame()
             profile['gender'] = subject['demographic']['Sex']
-            profile['age'] = subject['Creatinine']['Age'].iloc[0]
-            profile['Hba1C'] = subject['Hba1C']['Value'].iloc[0]
-            profile['eGFR'] = subject['Creatinine']['eGFR'].iloc[0]
-            profile['LDL'] = subject['LDL']['Value'].iloc[0]
-            initial_diagnosis = subject['diagnosis'][subject['diagnosis']['date'] < subject['Creatinine']['Datetime'].iloc[0]]
-            initial_prescriptions = subject['prescriptions'][subject['prescriptions']['start'] < subject['Creatinine']['Datetime'].iloc[0]]
+            profile['age'] = subject['Creatinine']['Age'].iloc[position]
+            profile['Hba1C'] = subject['Hba1C']['Value'].iloc[position]
+            profile['eGFR'] = subject['Creatinine']['eGFR'].iloc[position]
+            profile['LDL'] = subject['LDL']['Value'].iloc[position]
+            if time == "init":
+                initial_diagnosis = subject['diagnosis'][
+                    subject['diagnosis']['date'] < subject['Creatinine']['Datetime'].iloc[0]]
+                initial_prescriptions = subject['prescriptions'][
+                    subject['prescriptions']['start'] < subject['Creatinine']['Datetime'].iloc[0]]
+            if time == "final":
+                initial_diagnosis = subject['diagnosis'][
+                    subject['diagnosis']['date'] > subject['Creatinine']['Datetime'].iloc[0]]
+                initial_prescriptions = subject['prescriptions'][
+                    subject['prescriptions']['start'] > subject['Creatinine']['Datetime'].iloc[0]]
             for disease in ['HT', 'IHD', 'MI', 'stroke', 'ischemic stroke', 'hemorrhagic stroke', 'PVD', 'AF']:
                 profile[disease] = int(disease in initial_diagnosis['name'].tolist())
             for category in self.available_drug_categories:
@@ -209,7 +221,8 @@ class Analyser:
                         need_exclude = True
             if need_include and not need_exclude:
                 selected.append(subject)
-        self.baseline_characteristics(selected, '%s_exclude_%s_low_init_eGFR_%s' % (target, exclude, low_init_eGFR))
+        self.subject_profiles(selected, time='init', group_name='init_%s_exclude_%s_low_init_eGFR_%s' % (target, exclude, low_init_eGFR))
+        self.subject_profiles(selected, time='final', group_name='final_%s_exclude_%s_low_init_eGFR_%s' % (target, exclude, low_init_eGFR))
         return selected
 
 def analyse_subject(data: Dict[str, pd.DataFrame],
