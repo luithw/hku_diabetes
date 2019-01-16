@@ -125,6 +125,7 @@ class Analyser:
             >>> results = analyser.run(data)
         """
         tic = time.time()
+        self.available_drug_categories = data['Medication'].columns[21:]
         patient_ids = data['Creatinine'].index.unique().sort_values()
         print("patient_ids before intersecting: %i" %len(patient_ids))
         dropna(data, self.config)
@@ -158,20 +159,41 @@ class Analyser:
         return self.results
 
     def group_analysis(self):
-        selected = self.select_group(target='SGLT2i')
+        selected = self.analyse_group(target='SGLT2i')
         print("Selected subjects: %i" %len(selected))
-        selected = self.select_group(target='DDP4i')
+        selected = self.analyse_group(target='DDP4i')
         print("Selected subjects: %i" %len(selected))
-        selected = self.select_group(target='SGLT2i', exclude='DDP4i')
+        selected = self.analyse_group(target='SGLT2i', exclude='DDP4i')
         print("Selected subjects: %i" %len(selected))
-        selected = self.select_group(target='DDP4i', exclude='SGLT2i')
+        selected = self.analyse_group(target='DDP4i', exclude='SGLT2i')
         print("Selected subjects: %i" %len(selected))
-        selected = self.select_group(target='DDP4i', low_init_eGFR=False)
+        selected = self.analyse_group(target='DDP4i', low_init_eGFR=False)
         print("Selected subjects: %i" %len(selected))
-        selected = self.select_group(target='DDP4i', exclude='SGLT2i', low_init_eGFR=False)
+        selected = self.analyse_group(target='DDP4i', exclude='SGLT2i', low_init_eGFR=False)
         print("Selected subjects: %i" %len(selected))
 
-    def select_group(self, target, exclude=None, low_init_eGFR=True):
+    def baseline_characteristics(self, subjects, group_name):
+        for subject in subjects:
+            profile = pd.DataFrame()
+            profile['gender'] = subject['demographic']['Sex']
+            profile['age'] = subject['Creatinine']['Age'].iloc[0]
+            profile['Hba1C'] = subject['Hba1C']['Value'].iloc[0]
+            profile['eGFR'] = subject['Creatinine']['eGFR'].iloc[0]
+            profile['LDL'] = subject['LDL']['Value'].iloc[0]
+            initial_diagnosis = subject['diagnosis'][subject['diagnosis']['date'] < subject['Creatinine']['Datetime'].iloc[0]]
+            initial_prescriptions = subject['prescriptions'][subject['prescriptions']['start'] < subject['Creatinine']['Datetime'].iloc[0]]
+            for disease in ['HT', 'IHD', 'MI', 'stroke', 'ischemic stroke', 'hemorrhagic stroke', 'PVD', 'AF']:
+                profile[disease] = int(disease in initial_diagnosis['name'].tolist())
+            for category in self.available_drug_categories:
+                profile[category] = int(category in initial_prescriptions['name'].tolist())
+            subject['profile'] = profile
+        profiles = pd.concat([subject['profile'] for subject in subjects])
+        profile_summary = profiles.describe()
+        print(profile_summary)
+        profile_summary.to_csv("%s/%s_profile.csv" % (self.config.results_path, group_name))
+        return profiles
+
+    def analyse_group(self, target, exclude=None, low_init_eGFR=True):
         selected = []
         for subject in self.subject_data:
             need_include = target in subject['prescriptions']['category'].tolist()
@@ -187,6 +209,7 @@ class Analyser:
                         need_exclude = True
             if need_include and not need_exclude:
                 selected.append(subject)
+        self.baseline_characteristics(selected, '%s_exclude_%s_low_init_eGFR_%s' % (target, exclude, low_init_eGFR))
         return selected
 
 def analyse_subject(data: Dict[str, pd.DataFrame],
@@ -283,7 +306,7 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
     prescriptions = get_continuous_prescriptions(medication, Creatinine, config)
 
     subject_data['patient_id'] = patient_id
-    subject_data['date of death'] = demographic['DOD']
+    subject_data['demographic'] = demographic
     subject_data['prescriptions'] = prescriptions
     subject_data['diagnosis'] = diagnosis
     subject_data['procedure'] = procedure
@@ -358,7 +381,7 @@ def convert_code(items, code_key, date_key, mapping):
                 decoded_items.append({
                     'name': name,
                     'code': row['code'],
-                    'date': row[date_key]
+                    'date': pd.to_datetime(row[date_key])
                 })
     decoded_items = pd.DataFrame(decoded_items, columns=['name', 'code', 'date']).sort_values('date')
     return decoded_items
@@ -366,8 +389,8 @@ def convert_code(items, code_key, date_key, mapping):
 
 def get_continuous_prescriptions(medication, Creatinine, config):
     """Reduce medication entries to the number of continuous prescriptions."""
-    available_drug_categories = medication.columns[21:]
     continuous_prescriptions = []
+    available_drug_categories = medication.columns[21:]
     for category in available_drug_categories:
         prescriptions = medication.loc[medication[category]]
         if len(prescriptions) > 0:

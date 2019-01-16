@@ -49,8 +49,9 @@ class DefaultConfig:
                      820, 821, 822, 823, 824, 825, 826, 827, 828, 829,
                      733.1],
         'MI': [410, 411.1, 411.89],
+        'stroke': [433, 434, 435, 436, 430, 431, 432, 852, 853],
         'ischemic stroke': [433, 434, 435, 436],
-        'hemorrhagic stroke (spontaneous and traumatic)': [430, 431, 432, 852, 853],
+        'hemorrhagic stroke': [430, 431, 432, 852, 853],
         'HF': [398.91, 428],
         'HT': [401, 405],
         'IHD': [410, 411, 412, 414.0, 414.8, 414.9],
@@ -146,7 +147,7 @@ class TestConfig(DefaultConfig):
     """
 
     # Analytics
-    test_samples = 1000
+    test_samples = 10
     """The number of samples analysed by the analytics module.
 
     This allows faster testing time as there is no need to analyse all the data.
