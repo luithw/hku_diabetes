@@ -35,9 +35,6 @@ class DefaultConfig:
     max_continuous_prescription_gap = 30
     """The maximum number of days between prescriptions for them to be considered continuous."""
 
-    diagnosis_for_analysis = ['HT', 'IHD', 'MI', 'stroke', 'ischemic stroke', 'hemorrhagic stroke', 'PVD', 'AF']
-    """The diagnosis categories that are required for analysis"""
-
     diagnosis_code = {
         'CKD I-V': [585],
         'CKD I': [585.1],

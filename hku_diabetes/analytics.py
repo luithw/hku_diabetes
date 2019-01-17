@@ -5,6 +5,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import datetime
 import decimal
 import itertools
 import os
@@ -206,12 +207,15 @@ class Analyser:
                 else:
                     profile = pd.DataFrame()
                     profile['prescription_start'] = target_prescription['start']
-                    profile['death_date'] = subject['demographic']['DOD']
                     profile['gender'] = subject['demographic']['Sex']
                     profile['age'] = target_Creatinine['Age']
                     profile['eGFR'] = target_Creatinine['eGFR']
                     profile['Hba1C'] = target_Hba1C['Value']
                     profile['LDL'] = target_LDL['Value']
+                    if pd.isnull(subject['demographic']['DOD']).values.all():
+                        profile['death_date'] = datetime.datetime.today() + datetime.timedelta(days=1)
+                    else:
+                        profile['death_date'] = subject['demographic']['DOD']
                     if time == "init":
                         target_diagnosis = subject['diagnosis'][
                             subject['diagnosis']['date'] < target_prescription['start']]
@@ -223,19 +227,18 @@ class Analyser:
                             subject['diagnosis']['date'] > target_prescription['start']]
                         target_prescriptions = subject['prescriptions'][
                             subject['prescriptions']['start'] > target_prescription['start']]
-                    for diagnosis in self.config.diagnosis_for_analysis:
+                    for diagnosis in self.config.diagnosis_code.keys():
                         profile[diagnosis] = int(diagnosis in target_diagnosis['name'].tolist())
                         analysis_diagnosis = target_diagnosis[target_diagnosis['name'] == diagnosis]
                         if len(analysis_diagnosis) > 0:
                             profile['%s_date' % diagnosis] = analysis_diagnosis['date'].iloc[0]
                         else:
-                            profile['%s_date' % diagnosis] = np.nan
+                            profile['%s_date' % diagnosis] = datetime.datetime.today() + datetime.timedelta(days=1)
                     for category in self.available_drug_categories:
                         profile[category] = int(category in target_prescriptions['name'].tolist())
                     profiles.append(profile)
         profiles = pd.concat(profiles)
         profile_summary = profiles.describe()
-        print(profile_summary)
         profile_summary.to_csv("%s/%s_profile.csv" % (self.config.results_path, group_name))
         return profiles
 
@@ -262,15 +265,24 @@ class Analyser:
 
     def survival_analysis(self, profiles, group_name):
         pdf = PdfPages("%s/%s_survival.pdf" % (self.config.plot_path, group_name))
-        for event in ['death'] + self.config.diagnosis_for_analysis:
-            T, E = lifelines.utils.datetimes_to_durations(profiles['prescription_start'], profiles['%s_date' % event])
+        event_dates={}
+        for event in ['death'] + list(self.config.diagnosis_code.keys()):
+            event_dates[event] = profiles['%s_date' % event]
+        # Combine multiple outcomes
+        combine_dates = []
+        for event in ['death', 'MI', 'stroke', 'HF']:
+            combine_dates.append(profiles['%s_date' % event])
+        combine_dates = pd.concat(combine_dates, axis=1)
+        event_dates['death_MI_HF_sroke'] = combine_dates.min(axis=1)
+
+        for event, event_date in event_dates.items():
+            T, E = lifelines.utils.datetimes_to_durations(profiles['prescription_start'], event_date)
             kmf = lifelines.KaplanMeierFitter()
             kmf.fit(T, event_observed=E)
             kmf.plot()
             plt.title(event)
             pdf.savefig(plt.gcf())
             plt.clf()
-            plt.cla()
         pdf.close()
 
 def analyse_subject(data: Dict[str, pd.DataFrame],
