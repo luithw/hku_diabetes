@@ -166,16 +166,16 @@ class Analyser:
     def group_analysis(self):
         selected = self.analyse_group(target='SGLT2i')
         print("Selected subjects: %i" %len(selected))
-        # selected = self.analyse_group(target='DDP4i')
-        # print("Selected subjects: %i" %len(selected))
-        # selected = self.analyse_group(target='SGLT2i', exclude='DDP4i')
-        # print("Selected subjects: %i" %len(selected))
-        # selected = self.analyse_group(target='DDP4i', exclude='SGLT2i')
-        # print("Selected subjects: %i" %len(selected))
-        # selected = self.analyse_group(target='DDP4i', low_init_eGFR=False)
-        # print("Selected subjects: %i" %len(selected))
-        # selected = self.analyse_group(target='DDP4i', exclude='SGLT2i', low_init_eGFR=False)
-        # print("Selected subjects: %i" %len(selected))
+        selected = self.analyse_group(target='DDP4i')
+        print("Selected subjects: %i" %len(selected))
+        selected = self.analyse_group(target='SGLT2i', exclude='DDP4i')
+        print("Selected subjects: %i" %len(selected))
+        selected = self.analyse_group(target='DDP4i', exclude='SGLT2i')
+        print("Selected subjects: %i" %len(selected))
+        selected = self.analyse_group(target='DDP4i', low_init_eGFR=False)
+        print("Selected subjects: %i" %len(selected))
+        selected = self.analyse_group(target='DDP4i', exclude='SGLT2i', low_init_eGFR=False)
+        print("Selected subjects: %i" %len(selected))
 
     def get_target_value(self, resource, prescription, time):
         initial_values = resource[resource['Datetime'] < prescription['start']]
@@ -214,17 +214,22 @@ class Analyser:
                     profile['LDL'] = target_LDL['Value']
                     if time == "init":
                         target_diagnosis = subject['diagnosis'][
-                            subject['diagnosis']['date'] < target_Creatinine['Datetime']]
+                            subject['diagnosis']['date'] < target_prescription['start']]
                         target_prescriptions = subject['prescriptions'][
-                            subject['prescriptions']['start'] < target_Creatinine['Datetime']]
+                            subject['prescriptions']['start'] < target_prescription['start']]
                     if time == "final":
+                        # We are interested in the diagnosis after the durg measurement started
                         target_diagnosis = subject['diagnosis'][
-                            subject['diagnosis']['date'] > target_Creatinine['Datetime']]
+                            subject['diagnosis']['date'] > target_prescription['start']]
                         target_prescriptions = subject['prescriptions'][
-                            subject['prescriptions']['start'] > target_Creatinine['Datetime']]
+                            subject['prescriptions']['start'] > target_prescription['start']]
                     for diagnosis in self.config.diagnosis_for_analysis:
                         profile[diagnosis] = int(diagnosis in target_diagnosis['name'].tolist())
-                        profile['%s_date' % diagnosis] = target_diagnosis[target_diagnosis['name'] == diagnosis]['date']
+                        analysis_diagnosis = target_diagnosis[target_diagnosis['name'] == diagnosis]
+                        if len(analysis_diagnosis) > 0:
+                            profile['%s_date' % diagnosis] = analysis_diagnosis['date'].iloc[0]
+                        else:
+                            profile['%s_date' % diagnosis] = np.nan
                     for category in self.available_drug_categories:
                         profile[category] = int(category in target_prescriptions['name'].tolist())
                     profiles.append(profile)
@@ -256,15 +261,16 @@ class Analyser:
         return selected
 
     def survival_analysis(self, profiles, group_name):
-        T, E = lifelines.utils.datetimes_to_durations(profiles['prescription_start'], profiles['death_date'])
-        kmf = lifelines.KaplanMeierFitter()
-        kmf.fit(T, event_observed=E)
         pdf = PdfPages("%s/%s_survival.pdf" % (self.config.plot_path, group_name))
-        ax = kmf.plot()
-        plt.title("Death")
-        pdf.savefig(plt.gcf())
-        plt.clf()
-        plt.cla()
+        for event in ['death'] + self.config.diagnosis_for_analysis:
+            T, E = lifelines.utils.datetimes_to_durations(profiles['prescription_start'], profiles['%s_date' % event])
+            kmf = lifelines.KaplanMeierFitter()
+            kmf.fit(T, event_observed=E)
+            kmf.plot()
+            plt.title(event)
+            pdf.savefig(plt.gcf())
+            plt.clf()
+            plt.cla()
         pdf.close()
 
 def analyse_subject(data: Dict[str, pd.DataFrame],
