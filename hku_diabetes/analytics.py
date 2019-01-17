@@ -16,9 +16,14 @@ from typing import Dict
 from typing import Type
 from typing import Union
 
+import lifelines
 import numpy as np
-import pandas as pd
+import matplotlib
+matplotlib.use('Agg')  # Need to execute this before importing plt
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.dates import date2num
+import pandas as pd
 from scipy.interpolate import pchip_interpolate
 from scipy.stats import linregress
 
@@ -55,9 +60,10 @@ class Analyser:
         """
         if not os.path.exists(self.config.results_path):
             os.makedirs(self.config.results_path)
-        with open('%s/subject_data.pickle' % self.config.results_path,
+        with open('%s/analyser_data.pickle' % self.config.results_path,
                   'wb') as file:
-            pickle.dump(self.subject_data, file, pickle.HIGHEST_PROTOCOL)
+            pickle.dump([self.subject_data, self.available_drug_categories], file, pickle.HIGHEST_PROTOCOL)
+        
         for key, item in self.results.items():
             item = item.dropna()
             item.index = self.patient_ids
@@ -71,7 +77,7 @@ class Analyser:
         script should catch FileNotFoundError and call the run method.
 
         Raises:
-            FileNotFoundError: No results files are found in config.results_path.
+            FileNotFoundError: Pickle file is not found in config.results_path.
 
         Returns:
             A dictionary containing results for regression and ckd as
@@ -88,11 +94,11 @@ class Analyser:
             >>>     results = analyser.run(data)
         """
         try:
-            with open('%s/subject_data.pickle' % self.config.results_path,
+            with open('%s/analyser_data.pickle' % self.config.results_path,
                       'rb') as file:
-                self.subject_data = pickle.load(file)
+                self.subject_data, self.available_drug_categories = pickle.load(file)
         except FileNotFoundError as e:
-            print("No results files are found in config.results_path")
+            print("Pickle file is not found in config.results_path")
             raise e
         else:
             self.patient_ids = [x['patient_id'] for x in self.subject_data]
@@ -153,7 +159,6 @@ class Analyser:
         self.results['ckd'] = pd.DataFrame(
             [x['ckd'] for x in self.subject_data],
             columns=self.config.ckd_thresholds)
-        self.group_analysis()
         self._save()
         print('Finished analysis, time passed: %is' % (time.time() - tic))
         return self.results
@@ -161,16 +166,16 @@ class Analyser:
     def group_analysis(self):
         selected = self.analyse_group(target='SGLT2i')
         print("Selected subjects: %i" %len(selected))
-        selected = self.analyse_group(target='DDP4i')
-        print("Selected subjects: %i" %len(selected))
-        selected = self.analyse_group(target='SGLT2i', exclude='DDP4i')
-        print("Selected subjects: %i" %len(selected))
-        selected = self.analyse_group(target='DDP4i', exclude='SGLT2i')
-        print("Selected subjects: %i" %len(selected))
-        selected = self.analyse_group(target='DDP4i', low_init_eGFR=False)
-        print("Selected subjects: %i" %len(selected))
-        selected = self.analyse_group(target='DDP4i', exclude='SGLT2i', low_init_eGFR=False)
-        print("Selected subjects: %i" %len(selected))
+        # selected = self.analyse_group(target='DDP4i')
+        # print("Selected subjects: %i" %len(selected))
+        # selected = self.analyse_group(target='SGLT2i', exclude='DDP4i')
+        # print("Selected subjects: %i" %len(selected))
+        # selected = self.analyse_group(target='DDP4i', exclude='SGLT2i')
+        # print("Selected subjects: %i" %len(selected))
+        # selected = self.analyse_group(target='DDP4i', low_init_eGFR=False)
+        # print("Selected subjects: %i" %len(selected))
+        # selected = self.analyse_group(target='DDP4i', exclude='SGLT2i', low_init_eGFR=False)
+        # print("Selected subjects: %i" %len(selected))
 
     def get_target_value(self, resource, prescription, time):
         initial_values = resource[resource['Datetime'] < prescription['start']]
@@ -187,7 +192,7 @@ class Analyser:
             target_value = concurrent_values.iloc[-1]
         return target_value
 
-    def subject_profiles(self, subjects, target_drug,time, group_name):
+    def group_profile(self, subjects, target_drug, time, group_name):
         profiles = []
         for subject in subjects:
             target_prescriptions = subject['prescriptions'][subject['prescriptions']['category'] == target_drug]
@@ -200,6 +205,8 @@ class Analyser:
                     continue
                 else:
                     profile = pd.DataFrame()
+                    profile['prescription_start'] = target_prescription['start']
+                    profile['death_date'] = subject['demographic']['DOD']
                     profile['gender'] = subject['demographic']['Sex']
                     profile['age'] = target_Creatinine['Age']
                     profile['eGFR'] = target_Creatinine['eGFR']
@@ -215,8 +222,9 @@ class Analyser:
                             subject['diagnosis']['date'] > target_Creatinine['Datetime']]
                         target_prescriptions = subject['prescriptions'][
                             subject['prescriptions']['start'] > target_Creatinine['Datetime']]
-                    for disease in ['HT', 'IHD', 'MI', 'stroke', 'ischemic stroke', 'hemorrhagic stroke', 'PVD', 'AF']:
-                        profile[disease] = int(disease in target_diagnosis['name'].tolist())
+                    for diagnosis in self.config.diagnosis_for_analysis:
+                        profile[diagnosis] = int(diagnosis in target_diagnosis['name'].tolist())
+                        profile['%s_date' % diagnosis] = target_diagnosis[target_diagnosis['name'] == diagnosis]['date']
                     for category in self.available_drug_categories:
                         profile[category] = int(category in target_prescriptions['name'].tolist())
                     profiles.append(profile)
@@ -242,9 +250,22 @@ class Analyser:
                         need_exclude = True
             if need_include and not need_exclude:
                 selected.append(subject)
-        self.subject_profiles(selected, target, time='init', group_name='init_%s_exclude_%s_low_init_eGFR_%s' % (target, exclude, low_init_eGFR))
-        self.subject_profiles(selected, target, time='final', group_name='final_%s_exclude_%s_low_init_eGFR_%s' % (target, exclude, low_init_eGFR))
+        start_profile = self.group_profile(selected, target, time='init', group_name='init_%s_exclude_%s_low_init_eGFR_%s' % (target, exclude, low_init_eGFR))
+        end_profile = self.group_profile(selected, target, time='final', group_name='final_%s_exclude_%s_low_init_eGFR_%s' % (target, exclude, low_init_eGFR))
+        self.survival_analysis(end_profile, group_name='%s_exclude_%s_low_init_eGFR_%s' % (target, exclude, low_init_eGFR))
         return selected
+
+    def survival_analysis(self, profiles, group_name):
+        T, E = lifelines.utils.datetimes_to_durations(profiles['prescription_start'], profiles['death_date'])
+        kmf = lifelines.KaplanMeierFitter()
+        kmf.fit(T, event_observed=E)
+        pdf = PdfPages("%s/%s_survival.pdf" % (self.config.plot_path, group_name))
+        ax = kmf.plot()
+        plt.title("Death")
+        pdf.savefig(plt.gcf())
+        plt.clf()
+        plt.cla()
+        pdf.close()
 
 def analyse_subject(data: Dict[str, pd.DataFrame],
                     patient_id: int,

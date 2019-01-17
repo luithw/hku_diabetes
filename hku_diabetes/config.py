@@ -35,6 +35,9 @@ class DefaultConfig:
     max_continuous_prescription_gap = 30
     """The maximum number of days between prescriptions for them to be considered continuous."""
 
+    diagnosis_for_analysis = ['HT', 'IHD', 'MI', 'stroke', 'ischemic stroke', 'hemorrhagic stroke', 'PVD', 'AF']
+    """The diagnosis categories that are required for analysis"""
+
     diagnosis_code = {
         'CKD I-V': [585],
         'CKD I': [585.1],
@@ -147,7 +150,7 @@ class TestConfig(DefaultConfig):
     """
 
     # Analytics
-    test_samples = 10
+    test_samples = 100
     """The number of samples analysed by the analytics module.
 
     This allows faster testing time as there is no need to analyse all the data.

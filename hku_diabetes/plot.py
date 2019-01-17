@@ -11,9 +11,9 @@ import warnings
 from decimal import Decimal
 from typing import Text
 
+import numpy as np
 import matplotlib
 matplotlib.use('Agg')  # Need to execute this before importing plt
-import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.dates import date2num
