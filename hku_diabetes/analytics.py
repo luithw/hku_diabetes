@@ -172,34 +172,55 @@ class Analyser:
         selected = self.analyse_group(target='DDP4i', exclude='SGLT2i', low_init_eGFR=False)
         print("Selected subjects: %i" %len(selected))
 
-    def subject_profiles(self, subjects, time, group_name):
-        if time == "init":
-            position = 0
+    def get_target_value(self, resource, prescription, time):
+        initial_values = resource[resource['Datetime'] < prescription['start']]
+        concurrent_values = resource[np.logical_and(prescription['start'] < resource['Datetime'],
+                                                    resource['Datetime'] < prescription['end'])]
+        if len(concurrent_values) == 0:
+            raise ValueError("There is no concurrent values witht the target prescription.")
+        if time == 'init':
+            if len(initial_values) > 0:
+                target_value = initial_values.iloc[-1]
+            else:
+                target_value = resource.iloc[0]
         if time == "final":
-            position = -1
+            target_value = concurrent_values.iloc[-1]
+        return target_value
+
+    def subject_profiles(self, subjects, target_drug,time, group_name):
+        profiles = []
         for subject in subjects:
-            profile = pd.DataFrame()
-            profile['gender'] = subject['demographic']['Sex']
-            profile['age'] = subject['Creatinine']['Age'].iloc[position]
-            profile['Hba1C'] = subject['Hba1C']['Value'].iloc[position]
-            profile['eGFR'] = subject['Creatinine']['eGFR'].iloc[position]
-            profile['LDL'] = subject['LDL']['Value'].iloc[position]
-            if time == "init":
-                initial_diagnosis = subject['diagnosis'][
-                    subject['diagnosis']['date'] < subject['Creatinine']['Datetime'].iloc[0]]
-                initial_prescriptions = subject['prescriptions'][
-                    subject['prescriptions']['start'] < subject['Creatinine']['Datetime'].iloc[0]]
-            if time == "final":
-                initial_diagnosis = subject['diagnosis'][
-                    subject['diagnosis']['date'] > subject['Creatinine']['Datetime'].iloc[0]]
-                initial_prescriptions = subject['prescriptions'][
-                    subject['prescriptions']['start'] > subject['Creatinine']['Datetime'].iloc[0]]
-            for disease in ['HT', 'IHD', 'MI', 'stroke', 'ischemic stroke', 'hemorrhagic stroke', 'PVD', 'AF']:
-                profile[disease] = int(disease in initial_diagnosis['name'].tolist())
-            for category in self.available_drug_categories:
-                profile[category] = int(category in initial_prescriptions['name'].tolist())
-            subject['profile'] = profile
-        profiles = pd.concat([subject['profile'] for subject in subjects])
+            target_prescriptions = subject['prescriptions'][subject['prescriptions']['category'] == target_drug]
+            for index, target_prescription in target_prescriptions.iterrows():
+                try:
+                    target_Creatinine = self.get_target_value(subject['Creatinine'], target_prescription, time)
+                    target_Hba1C = self.get_target_value(subject['Hba1C'], target_prescription, time)
+                    target_LDL = self.get_target_value(subject['LDL'], target_prescription, time)
+                except ValueError:
+                    continue
+                else:
+                    profile = pd.DataFrame()
+                    profile['gender'] = subject['demographic']['Sex']
+                    profile['age'] = target_Creatinine['Age']
+                    profile['eGFR'] = target_Creatinine['eGFR']
+                    profile['Hba1C'] = target_Hba1C['Value']
+                    profile['LDL'] = target_LDL['Value']
+                    if time == "init":
+                        target_diagnosis = subject['diagnosis'][
+                            subject['diagnosis']['date'] < target_Creatinine['Datetime']]
+                        target_prescriptions = subject['prescriptions'][
+                            subject['prescriptions']['start'] < target_Creatinine['Datetime']]
+                    if time == "final":
+                        target_diagnosis = subject['diagnosis'][
+                            subject['diagnosis']['date'] > target_Creatinine['Datetime']]
+                        target_prescriptions = subject['prescriptions'][
+                            subject['prescriptions']['start'] > target_Creatinine['Datetime']]
+                    for disease in ['HT', 'IHD', 'MI', 'stroke', 'ischemic stroke', 'hemorrhagic stroke', 'PVD', 'AF']:
+                        profile[disease] = int(disease in target_diagnosis['name'].tolist())
+                    for category in self.available_drug_categories:
+                        profile[category] = int(category in target_prescriptions['name'].tolist())
+                    profiles.append(profile)
+        profiles = pd.concat(profiles)
         profile_summary = profiles.describe()
         print(profile_summary)
         profile_summary.to_csv("%s/%s_profile.csv" % (self.config.results_path, group_name))
@@ -221,8 +242,8 @@ class Analyser:
                         need_exclude = True
             if need_include and not need_exclude:
                 selected.append(subject)
-        self.subject_profiles(selected, time='init', group_name='init_%s_exclude_%s_low_init_eGFR_%s' % (target, exclude, low_init_eGFR))
-        self.subject_profiles(selected, time='final', group_name='final_%s_exclude_%s_low_init_eGFR_%s' % (target, exclude, low_init_eGFR))
+        self.subject_profiles(selected, target, time='init', group_name='init_%s_exclude_%s_low_init_eGFR_%s' % (target, exclude, low_init_eGFR))
+        self.subject_profiles(selected, target, time='final', group_name='final_%s_exclude_%s_low_init_eGFR_%s' % (target, exclude, low_init_eGFR))
         return selected
 
 def analyse_subject(data: Dict[str, pd.DataFrame],
