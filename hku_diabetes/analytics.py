@@ -165,18 +165,12 @@ class Analyser:
         return self.results
 
     def group_analysis(self):
-        selected = self.analyse_group(target='SGLT2i')
-        print("Selected subjects: %i" %len(selected))
-        selected = self.analyse_group(target='DDP4i')
-        print("Selected subjects: %i" %len(selected))
-        selected = self.analyse_group(target='SGLT2i', exclude='DDP4i')
-        print("Selected subjects: %i" %len(selected))
-        selected = self.analyse_group(target='DDP4i', exclude='SGLT2i')
-        print("Selected subjects: %i" %len(selected))
-        selected = self.analyse_group(target='DDP4i', low_init_eGFR=False)
-        print("Selected subjects: %i" %len(selected))
-        selected = self.analyse_group(target='DDP4i', exclude='SGLT2i', low_init_eGFR=False)
-        print("Selected subjects: %i" %len(selected))
+        self.analyse_group(target='SGLT2i')
+        self.analyse_group(target='DDP4i')
+        self.analyse_group(target='SGLT2i', exclude='DDP4i')
+        self.analyse_group(target='DDP4i', exclude='SGLT2i')
+        self.analyse_group(target='DDP4i', low_init_eGFR=False)
+        self.analyse_group(target='DDP4i', exclude='SGLT2i', low_init_eGFR=False)
 
     def get_target_value(self, resource, prescription, time):
         initial_values = resource[resource['Datetime'] < prescription['start']]
@@ -217,17 +211,20 @@ class Analyser:
                     else:
                         profile['death_date'] = subject['demographic']['DOD']
                     if time == "init":
-                        target_diagnosis = subject['diagnosis'][
-                            subject['diagnosis']['date'] < target_prescription['start']]
-                        target_prescriptions = subject['prescriptions'][
+                        target_diagnosis = subject['dia_pro'][
+                            subject['dia_pro']['date'] < target_prescription['start']]
+                        other_prescritions = subject['prescriptions'][
                             subject['prescriptions']['start'] < target_prescription['start']]
                     if time == "final":
                         # We are interested in the diagnosis after the durg measurement started
-                        target_diagnosis = subject['diagnosis'][
-                            subject['diagnosis']['date'] > target_prescription['start']]
-                        target_prescriptions = subject['prescriptions'][
+                        target_diagnosis = subject['dia_pro'][np.logical_and(
+                            subject['dia_pro']['date'] > target_prescription['start'] + datetime.timedelta(days=30),
+                            subject['dia_pro']['date'] < target_prescription['end'])]
+                        other_prescritions = subject['prescriptions'][
                             subject['prescriptions']['start'] > target_prescription['start']]
-                    for diagnosis in self.config.diagnosis_code.keys():
+                    all_events = set(
+                        list(self.config.diagnosis_code.keys()) + list(self.config.procedure_code.keys()))
+                    for diagnosis in all_events:
                         profile[diagnosis] = int(diagnosis in target_diagnosis['name'].tolist())
                         analysis_diagnosis = target_diagnosis[target_diagnosis['name'] == diagnosis]
                         if len(analysis_diagnosis) > 0:
@@ -235,7 +232,7 @@ class Analyser:
                         else:
                             profile['%s_date' % diagnosis] = datetime.datetime.today() + datetime.timedelta(days=1)
                     for category in self.available_drug_categories:
-                        profile[category] = int(category in target_prescriptions['name'].tolist())
+                        profile[category] = int(category in other_prescritions['name'].tolist())
                     profiles.append(profile)
         profiles = pd.concat(profiles)
         profile_summary = profiles.describe()
@@ -258,15 +255,18 @@ class Analyser:
                         need_exclude = True
             if need_include and not need_exclude:
                 selected.append(subject)
-        start_profile = self.group_profile(selected, target, time='init', group_name='init_%s_exclude_%s_low_init_eGFR_%s' % (target, exclude, low_init_eGFR))
-        end_profile = self.group_profile(selected, target, time='final', group_name='final_%s_exclude_%s_low_init_eGFR_%s' % (target, exclude, low_init_eGFR))
+        group_name = '%s_exclude_%s_low_init_eGFR_%s' % (target, exclude, low_init_eGFR)
+        print("%s selected subjects: %i" % (group_name, len(selected)))
+        start_profile = self.group_profile(selected, target, time='init', group_name='init_%s' % group_name)
+        end_profile = self.group_profile(selected, target, time='final', group_name='final_%s' % group_name)
         self.survival_analysis(end_profile, group_name='%s_exclude_%s_low_init_eGFR_%s' % (target, exclude, low_init_eGFR))
-        return selected
+        return
 
     def survival_analysis(self, profiles, group_name):
         pdf = PdfPages("%s/%s_survival.pdf" % (self.config.plot_path, group_name))
         event_dates={}
-        for event in ['death'] + list(self.config.diagnosis_code.keys()):
+        all_events = set(['death'] + list(self.config.diagnosis_code.keys()) + list(self.config.procedure_code.keys()))
+        for event in all_events:
             event_dates[event] = profiles['%s_date' % event]
         # Combine multiple outcomes
         combine_dates = []
@@ -383,6 +383,7 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
     subject_data['prescriptions'] = prescriptions
     subject_data['diagnosis'] = diagnosis
     subject_data['procedure'] = procedure
+    subject_data['dia_pro'] = pd.concat([diagnosis, procedure])
     subject_data['Creatinine'] = Creatinine
     subject_data['Hba1C'] = Hba1C
     subject_data['LDL'] = LDL
