@@ -15,7 +15,7 @@ if __name__ == '__main__':
         config = RunConfig
     else:
         config = TestConfig
-    annotate_records(config=config)
+    # annotate_records(config=config)
     analyser = analytics.Analyser(config=config)
     try:
         analyser.load()

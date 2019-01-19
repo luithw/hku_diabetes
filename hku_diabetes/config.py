@@ -125,14 +125,6 @@ class RunConfig(DefaultConfig):
     """Configuration used for running the full data analytic.
     """
 
-    # Importer
-    required_resources = ["Creatinine", "Hba1C", "Demographic"]
-    """The resources to be loaded by importer.
-
-    As the current analytics only support Creatinine and Hba1C, there is no
-    need to load the other resources.
-    """
-
     # plots
     # plot_modes = ["regression_distributions", "run"]
     """The type of plots to be created.
