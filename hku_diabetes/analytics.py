@@ -13,6 +13,7 @@ import pickle
 import time
 from collections import OrderedDict
 from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from typing import Dict
 from typing import Type
 from typing import Union
@@ -165,126 +166,138 @@ class Analyser:
         return self.results
 
     def group_analysis(self):
-        self.analyse_group(target='SGLT2i')
-        self.analyse_group(target='DDP4i')
-        self.analyse_group(target='SGLT2i', exclude='DDP4i')
-        self.analyse_group(target='DDP4i', exclude='SGLT2i')
-        self.analyse_group(target='DDP4i', low_init_eGFR=False)
-        self.analyse_group(target='DDP4i', exclude='SGLT2i', low_init_eGFR=False)
+        self.config.available_drug_categories = self.available_drug_categories
+        if self.config is TestConfig:
+            Executor = ThreadPoolExecutor
+        else:
+            Executor = ProcessPoolExecutor
+        with Executor() as executor:
+            executor.submit(analyse_group, self.subject_data, target='SGLT2i', config=self.config)
+            executor.submit(analyse_group, self.subject_data, target='DDP4i', config=self.config)
+            executor.submit(analyse_group, self.subject_data, target='SGLT2i', exclude='DDP4i', config=self.config)
+            executor.submit(analyse_group, self.subject_data, target='DDP4i', exclude='SGLT2i', config=self.config)
+            executor.submit(analyse_group, self.subject_data, target='DDP4i', low_init_eGFR=False, config=self.config)
+            executor.submit(analyse_group, self.subject_data, target='DDP4i', exclude='SGLT2i', low_init_eGFR=False,
+                            config=self.config)
 
-    def get_target_value(self, resource, prescription, time):
-        initial_values = resource[resource['Datetime'] < prescription['start']]
-        concurrent_values = resource[np.logical_and(prescription['start'] < resource['Datetime'],
-                                                    resource['Datetime'] < prescription['end'])]
-        if len(concurrent_values) == 0:
-            raise ValueError("There is no concurrent values witht the target prescription.")
-        if time == 'init':
-            if len(initial_values) > 0:
-                target_value = initial_values.iloc[-1]
+
+def get_target_value(resource, prescription, time):
+    initial_values = resource[resource['Datetime'] < prescription['start']]
+    concurrent_values = resource[np.logical_and(prescription['start'] < resource['Datetime'],
+                                                resource['Datetime'] < prescription['end'])]
+    if len(concurrent_values) == 0:
+        raise ValueError("There is no concurrent values witht the target prescription.")
+    if time == 'init':
+        if len(initial_values) > 0:
+            target_value = initial_values.iloc[-1]
+        else:
+            target_value = resource.iloc[0]
+    if time == "final":
+        target_value = concurrent_values.iloc[-1]
+    return target_value
+
+
+def group_profile(subjects, target_drug, time, group_name, config):
+    profiles = []
+    for subject in subjects:
+        target_prescriptions = subject['prescriptions'][subject['prescriptions']['category'] == target_drug]
+        for index, target_prescription in target_prescriptions.iterrows():
+            try:
+                target_Creatinine = get_target_value(subject['Creatinine'], target_prescription, time)
+                target_Hba1C = get_target_value(subject['Hba1C'], target_prescription, time)
+                target_LDL = get_target_value(subject['LDL'], target_prescription, time)
+            except ValueError:
+                continue
             else:
-                target_value = resource.iloc[0]
-        if time == "final":
-            target_value = concurrent_values.iloc[-1]
-        return target_value
-
-    def group_profile(self, subjects, target_drug, time, group_name):
-        profiles = []
-        for subject in subjects:
-            target_prescriptions = subject['prescriptions'][subject['prescriptions']['category'] == target_drug]
-            for index, target_prescription in target_prescriptions.iterrows():
-                try:
-                    target_Creatinine = self.get_target_value(subject['Creatinine'], target_prescription, time)
-                    target_Hba1C = self.get_target_value(subject['Hba1C'], target_prescription, time)
-                    target_LDL = self.get_target_value(subject['LDL'], target_prescription, time)
-                except ValueError:
-                    continue
+                profile = pd.DataFrame()
+                profile['prescription_start'] = target_prescription['start']
+                profile['gender'] = subject['demographic']['Sex']
+                profile['age'] = target_Creatinine['Age']
+                profile['eGFR'] = target_Creatinine['eGFR']
+                profile['Hba1C'] = target_Hba1C['Value']
+                profile['LDL'] = target_LDL['Value']
+                profile['prescription_duration'] = target_prescription['end'] - target_prescription['start']
+                if pd.isnull(subject['demographic']['DOD']).values.all():
+                    profile['death_date'] = datetime.datetime.today() + datetime.timedelta(days=1)
                 else:
-                    profile = pd.DataFrame()
-                    profile['prescription_start'] = target_prescription['start']
-                    profile['gender'] = subject['demographic']['Sex']
-                    profile['age'] = target_Creatinine['Age']
-                    profile['eGFR'] = target_Creatinine['eGFR']
-                    profile['Hba1C'] = target_Hba1C['Value']
-                    profile['LDL'] = target_LDL['Value']
-                    profile['prescription_duration'] = target_prescription['end'] - target_prescription['start']
-                    if pd.isnull(subject['demographic']['DOD']).values.all():
-                        profile['death_date'] = datetime.datetime.today() + datetime.timedelta(days=1)
+                    profile['death_date'] = subject['demographic']['DOD']
+                if time == "init":
+                    target_diagnosis = subject['dia_pro'][
+                        subject['dia_pro']['date'] < target_prescription['start']]
+                    other_prescritions = subject['prescriptions'][
+                        subject['prescriptions']['start'] < target_prescription['start']]
+                if time == "final":
+                    # We are interested in the diagnosis after the durg measurement started
+                    target_diagnosis = subject['dia_pro'][np.logical_and(
+                        subject['dia_pro']['date'] > target_prescription['start'] + datetime.timedelta(days=30),
+                        subject['dia_pro']['date'] < target_prescription['end'])]
+                    other_prescritions = subject['prescriptions'][
+                        subject['prescriptions']['start'] > target_prescription['start']]
+                all_events = set(
+                    list(config.diagnosis_code.keys()) + list(config.procedure_code.keys()))
+                for diagnosis in all_events:
+                    profile[diagnosis] = int(diagnosis in target_diagnosis['name'].tolist())
+                    analysis_diagnosis = target_diagnosis[target_diagnosis['name'] == diagnosis]
+                    if len(analysis_diagnosis) > 0:
+                        profile['%s_date' % diagnosis] = analysis_diagnosis['date'].iloc[0]
                     else:
-                        profile['death_date'] = subject['demographic']['DOD']
-                    if time == "init":
-                        target_diagnosis = subject['dia_pro'][
-                            subject['dia_pro']['date'] < target_prescription['start']]
-                        other_prescritions = subject['prescriptions'][
-                            subject['prescriptions']['start'] < target_prescription['start']]
-                    if time == "final":
-                        # We are interested in the diagnosis after the durg measurement started
-                        target_diagnosis = subject['dia_pro'][np.logical_and(
-                            subject['dia_pro']['date'] > target_prescription['start'] + datetime.timedelta(days=30),
-                            subject['dia_pro']['date'] < target_prescription['end'])]
-                        other_prescritions = subject['prescriptions'][
-                            subject['prescriptions']['start'] > target_prescription['start']]
-                    all_events = set(
-                        list(self.config.diagnosis_code.keys()) + list(self.config.procedure_code.keys()))
-                    for diagnosis in all_events:
-                        profile[diagnosis] = int(diagnosis in target_diagnosis['name'].tolist())
-                        analysis_diagnosis = target_diagnosis[target_diagnosis['name'] == diagnosis]
-                        if len(analysis_diagnosis) > 0:
-                            profile['%s_date' % diagnosis] = analysis_diagnosis['date'].iloc[0]
-                        else:
-                            profile['%s_date' % diagnosis] = datetime.datetime.today() + datetime.timedelta(days=1)
-                    for category in self.available_drug_categories:
-                        profile[category] = int(category in other_prescritions['name'].tolist())
-                    profiles.append(profile)
-        profiles = pd.concat(profiles)
-        profile_summary = profiles.describe()
-        profile_summary.to_csv("%s/%s_profile.csv" % (self.config.results_path, group_name))
-        return profiles
+                        profile['%s_date' % diagnosis] = datetime.datetime.today() + datetime.timedelta(days=1)
+                for category in config.available_drug_categories:
+                    profile[category] = int(category in other_prescritions['name'].tolist())
+                profiles.append(profile)
+    profiles = pd.concat(profiles)
+    profile_summary = profiles.describe()
+    profile_summary.to_csv("%s/%s_profile.csv" % (config.results_path, group_name))
+    return profiles
 
-    def analyse_group(self, target, exclude=None, low_init_eGFR=True):
-        selected = []
-        for subject in self.subject_data:
-            need_include = target in subject['prescriptions']['category'].tolist()
-            if need_include:
-                target_prescription = subject['prescriptions'][subject['prescriptions']['category'] == target]
-                if exclude is not None:
-                    need_exclude = np.any(target_prescription['concurrent %s' % exclude])
-                else:
-                    need_exclude = False
-                if not low_init_eGFR:
-                    init = subject['Creatinine'].iloc[0]
-                    if init['eGFR'] <= 45 and init['Datetime'] < target_prescription['start'].iloc[0]:
-                        need_exclude = True
-            if need_include and not need_exclude:
-                selected.append(subject)
-        group_name = '%s_exclude_%s_low_init_eGFR_%s' % (target, exclude, low_init_eGFR)
-        print("%s selected subjects: %i" % (group_name, len(selected)))
-        start_profile = self.group_profile(selected, target, time='init', group_name='init_%s' % group_name)
-        end_profile = self.group_profile(selected, target, time='final', group_name='final_%s' % group_name)
-        self.survival_analysis(end_profile, group_name='%s_exclude_%s_low_init_eGFR_%s' % (target, exclude, low_init_eGFR))
-        return
+def analyse_group(subjects, target, exclude=None, low_init_eGFR=True, config=DefaultConfig()):
+    import pdb; pdb.set_trace();
+    selected = []
+    for subject in subjects:
+        need_include = target in subject['prescriptions']['category'].tolist()
+        if need_include:
+            target_prescription = subject['prescriptions'][subject['prescriptions']['category'] == target]
+            if exclude is not None:
+                need_exclude = np.any(target_prescription['concurrent %s' % exclude])
+            else:
+                need_exclude = False
+            if not low_init_eGFR:
+                init = subject['Creatinine'].iloc[0]
+                if init['eGFR'] <= 45 and init['Datetime'] < target_prescription['start'].iloc[0]:
+                    need_exclude = True
+        if need_include and not need_exclude:
+            selected.append(subject)
+    group_name = '%s_exclude_%s_low_init_eGFR_%s' % (target, exclude, low_init_eGFR)
+    print("%s selected subjects: %i" % (group_name, len(selected)))
+    start_profile = group_profile(selected, target, time='init', group_name='init_%s' % group_name, config=config)
+    end_profile = group_profile(selected, target, time='final', group_name='final_%s' % group_name, config=config)
+    survival_analysis(end_profile, group_name='%s_exclude_%s_low_init_eGFR_%s' % (target, exclude, low_init_eGFR),
+                      config=config)
+    return
 
-    def survival_analysis(self, profiles, group_name):
-        pdf = PdfPages("%s/%s_survival.pdf" % (self.config.plot_path, group_name))
-        event_dates={}
-        all_events = set(['death'] + list(self.config.diagnosis_code.keys()) + list(self.config.procedure_code.keys()))
-        for event in all_events:
-            event_dates[event] = profiles['%s_date' % event]
-        # Combine multiple outcomes
-        combine_dates = []
-        for event in ['death', 'MI', 'stroke', 'HF']:
-            combine_dates.append(profiles['%s_date' % event])
-        combine_dates = pd.concat(combine_dates, axis=1)
-        event_dates['death_MI_HF_sroke'] = combine_dates.min(axis=1)
 
-        for event, event_date in event_dates.items():
-            T, E = lifelines.utils.datetimes_to_durations(profiles['prescription_start'], event_date)
-            kmf = lifelines.KaplanMeierFitter()
-            kmf.fit(T, event_observed=E)
-            kmf.plot()
-            plt.title(event)
-            pdf.savefig(plt.gcf())
-            plt.clf()
-        pdf.close()
+def survival_analysis(profiles, group_name, config):
+    pdf = PdfPages("%s/%s_survival.pdf" % (config.plot_path, group_name))
+    event_dates={}
+    all_events = set(['death'] + list(config.diagnosis_code.keys()) + list(config.procedure_code.keys()))
+    for event in all_events:
+        event_dates[event] = profiles['%s_date' % event]
+    # Combine multiple outcomes
+    combine_dates = []
+    for event in ['death', 'MI', 'stroke', 'HF']:
+        combine_dates.append(profiles['%s_date' % event])
+    combine_dates = pd.concat(combine_dates, axis=1)
+    event_dates['death_MI_HF_sroke'] = combine_dates.min(axis=1)
+
+    for event, event_date in event_dates.items():
+        T, E = lifelines.utils.datetimes_to_durations(profiles['prescription_start'], event_date)
+        kmf = lifelines.KaplanMeierFitter()
+        kmf.fit(T, event_observed=E)
+        kmf.plot()
+        plt.title(event)
+        pdf.savefig(plt.gcf())
+        plt.clf()
+    pdf.close()
 
 def analyse_subject(data: Dict[str, pd.DataFrame],
                     patient_id: int,
