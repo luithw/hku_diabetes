@@ -235,8 +235,11 @@ def group_profile(subjects, target_drug, time, group_name, config):
                         subject['prescriptions']['start'] > target_prescription['start']]
                 all_events = set(
                     list(config.diagnosis_code.keys()) + list(config.procedure_code.keys()))
+                duration_years = profile['prescription_duration'].iloc[0].days / 365
                 for diagnosis in all_events:
                     profile[diagnosis] = int(diagnosis in target_diagnosis['name'].tolist())
+                    profile['%s_100_years' % diagnosis] = (np.sum(target_diagnosis['name'] == diagnosis)
+                                                           * 100 / duration_years)
                     analysis_diagnosis = target_diagnosis[target_diagnosis['name'] == diagnosis]
                     if len(analysis_diagnosis) > 0:
                         profile['%s_date' % diagnosis] = analysis_diagnosis['date'].iloc[0]
