@@ -206,6 +206,7 @@ class Analyser:
                     profile['eGFR'] = target_Creatinine['eGFR']
                     profile['Hba1C'] = target_Hba1C['Value']
                     profile['LDL'] = target_LDL['Value']
+                    profile['prescription_duration'] = target_prescription['end'] - target_prescription['start']
                     if pd.isnull(subject['demographic']['DOD']).values.all():
                         profile['death_date'] = datetime.datetime.today() + datetime.timedelta(days=1)
                     else:
