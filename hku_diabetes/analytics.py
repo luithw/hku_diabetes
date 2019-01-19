@@ -251,7 +251,6 @@ def group_profile(subjects, target_drug, time, group_name, config):
     return profiles
 
 def analyse_group(subjects, target, exclude=None, low_init_eGFR=True, config=DefaultConfig()):
-    import pdb; pdb.set_trace();
     selected = []
     for subject in subjects:
         need_include = target in subject['prescriptions']['category'].tolist()
