@@ -32,7 +32,7 @@ class DefaultConfig:
     starting_eGFR = 60
     """The starting eGFR of analysis"""
 
-    max_continuous_prescription_gap = 30
+    max_continuous_prescription_gap = 60
     """The maximum number of days between prescriptions for them to be considered continuous."""
 
     diagnosis_code = {

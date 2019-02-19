@@ -8,6 +8,7 @@ from __future__ import print_function
 import datetime
 import decimal
 import itertools
+import multiprocessing
 import os
 import pickle
 import time
@@ -169,9 +170,11 @@ class Analyser:
         self.config.available_drug_categories = self.available_drug_categories
         if self.config is TestConfig:
             Executor = ThreadPoolExecutor
+            max_workers = 1
         else:
             Executor = ProcessPoolExecutor
-        with Executor() as executor:
+            max_workers = multiprocessing.cpu_count()
+        with Executor(max_workers=max_workers) as executor:
             executor.submit(analyse_group, self.subject_data, target='SGLT2i', config=self.config)
             executor.submit(analyse_group, self.subject_data, target='DDP4i', config=self.config)
             executor.submit(analyse_group, self.subject_data, target='SGLT2i', exclude='DDP4i', config=self.config)
@@ -210,12 +213,12 @@ def group_profile(subjects, target_drug, time, group_name, config):
                 continue
             else:
                 profile = pd.DataFrame()
-                profile['prescription_start'] = target_prescription['start']
                 profile['gender'] = subject['demographic']['Sex']
                 profile['age'] = target_Creatinine['Age']
                 profile['eGFR'] = target_Creatinine['eGFR']
                 profile['Hba1C'] = target_Hba1C['Value']
                 profile['LDL'] = target_LDL['Value']
+                profile['prescription_start'] = target_prescription['start']
                 profile['prescription_duration'] = target_prescription['end'] - target_prescription['start']
                 if pd.isnull(subject['demographic']['DOD']).values.all():
                     profile['death_date'] = datetime.datetime.today() + datetime.timedelta(days=1)
@@ -227,7 +230,7 @@ def group_profile(subjects, target_drug, time, group_name, config):
                     other_prescritions = subject['prescriptions'][
                         subject['prescriptions']['start'] < target_prescription['start']]
                 if time == "final":
-                    # We are interested in the diagnosis after the durg measurement started
+                    # We are interested in the diagnosis after the drug measurement started
                     target_diagnosis = subject['dia_pro'][np.logical_and(
                         subject['dia_pro']['date'] > target_prescription['start'] + datetime.timedelta(days=30),
                         subject['dia_pro']['date'] < target_prescription['end'])]
@@ -250,8 +253,10 @@ def group_profile(subjects, target_drug, time, group_name, config):
                 profiles.append(profile)
     profiles = pd.concat(profiles)
     profile_summary = profiles.describe()
-    profile_summary.to_csv("%s/%s_profile.csv" % (config.results_path, group_name))
+    profiles.to_csv(os.path.join(config.results_path, "%s_profiles.csv" % group_name))
+    profile_summary.to_csv(os.path.join(config.results_path, "%s_profile_summary.csv" % group_name))
     return profiles
+
 
 def analyse_group(subjects, target, exclude=None, low_init_eGFR=True, config=DefaultConfig()):
     selected = []
