@@ -142,7 +142,8 @@ class Analyser:
         evaluate_eGFR(data)
         patient_ids = data['Creatinine'].index.unique().sort_values()
         print("patient_ids after intersecting: %i" %len(patient_ids))
-        patient_ids = patient_ids[:self.config.test_samples]
+        if self.config is TestConfig:
+            patient_ids = patient_ids[:self.config.test_samples]
         subject_data = []
         for i, patient_id in enumerate(patient_ids):
             subject_data.append(analyse_subject(data, patient_id, self.config))
