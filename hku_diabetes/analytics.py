@@ -218,6 +218,7 @@ def group_profile(subjects, target_drug, time, group_name, config):
                 profile['eGFR'] = target_Creatinine['eGFR']
                 profile['Hba1C'] = target_Hba1C['Value']
                 profile['LDL'] = target_LDL['Value']
+                profile['drug_name'] = target_prescription['name']
                 profile['prescription_start'] = target_prescription['start']
                 profile['prescription_duration'] = target_prescription['end'] - target_prescription['start']
                 if pd.isnull(subject['demographic']['DOD']).values.all():
@@ -237,7 +238,7 @@ def group_profile(subjects, target_drug, time, group_name, config):
                     other_prescritions = subject['prescriptions'][
                         subject['prescriptions']['start'] > target_prescription['start']]
                 all_events = set(
-                    list(config.diagnosis_code.keys()) + list(config.procedure_code.keys()))
+                    ['diabetic_drugs'] + list(config.diagnosis_code.keys()) + list(config.procedure_code.keys()))
                 duration_years = profile['prescription_duration'].iloc[0].days / 365
                 for diagnosis in all_events:
                     profile[diagnosis] = int(diagnosis in target_diagnosis['name'].tolist())
@@ -286,7 +287,7 @@ def analyse_group(subjects, target, exclude=None, low_init_eGFR=True, config=Def
 def survival_analysis(profiles, group_name, config):
     pdf = PdfPages("%s/%s_survival.pdf" % (config.plot_path, group_name))
     event_dates={}
-    all_events = set(['death'] + list(config.diagnosis_code.keys()) + list(config.procedure_code.keys()))
+    all_events = set(['death', 'diabetic_drugs'] + list(config.diagnosis_code.keys()) + list(config.procedure_code.keys()))
     for event in all_events:
         event_dates[event] = profiles['%s_date' % event]
     # Combine multiple outcomes
@@ -305,6 +306,7 @@ def survival_analysis(profiles, group_name, config):
         pdf.savefig(plt.gcf())
         plt.clf()
     pdf.close()
+
 
 def analyse_subject(data: Dict[str, pd.DataFrame],
                     patient_id: int,
@@ -347,9 +349,14 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
     Creatinine = remove_duplicate(Creatinine)
     Hba1C = remove_duplicate(Hba1C)
 
+    prescriptions = get_continuous_prescriptions(medication, Creatinine, config)
     diagnosis = convert_code(diagnosis, 'All Diagnosis Code (ICD9)', 'Reference Date', config.diagnosis_code)
     procedure = convert_code(procedure, 'All Procedure Code', 'Procedure Date (yyyy-mm-dd)', config.procedure_code)
 
+    # Need to add in the diagnosis of diabetes if they take diabetic_drugs
+    for _, prescription in prescriptions.iterrows():
+        if prescription['category'] in config.diabetic_drugs:
+            diagnosis = diagnosis.append({'name':'diabetic_drugs', 'date':prescription['start']}, ignore_index=True)
     if 'dialysis' in diagnosis['name'].tolist() or 'dialysis' in procedure['name'].tolist():
         # Exclude patients on dialysis, as their creatinine does not represent intrinsic eGFR.
         return None
@@ -395,9 +402,6 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
     inverse_regression = np.poly1d(
         np.polyfit(Creatinine_LP['eGFR'], cumulative_Hba1C, 1))
     subject_data = OrderedDict()
-
-
-    prescriptions = get_continuous_prescriptions(medication, Creatinine, config)
 
     subject_data['patient_id'] = patient_id
     subject_data['demographic'] = demographic

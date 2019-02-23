@@ -32,7 +32,7 @@ class DefaultConfig:
     starting_eGFR = 60
     """The starting eGFR of analysis"""
 
-    max_continuous_prescription_gap = 60
+    max_continuous_prescription_gap = 30
     """The maximum number of days between prescriptions for them to be considered continuous."""
 
     diagnosis_code = {
@@ -61,7 +61,7 @@ class DefaultConfig:
         'DM': [249, 250],
         'DKA': [250.1],
         'UTI': [599.0],
-        'dialysis': ['V45.1', 'V56.0', 'V56.8', 39.95, 54.98]
+        'dialysis': ['V45.1', 'V56.0', 'V56.8', 39.95, 54.98],
     }
     """The ICD9 diagnosis code of different diagnosis. https://en.wikipedia.org/wiki/List_of_ICD-9_codes_390–459"""
 
@@ -69,6 +69,8 @@ class DefaultConfig:
         'amputation': [84.0, 84.91],
         'dialysis': [39.95, 54.98]
     }
+
+    diabetic_drugs = ['Thiazides', 'Direct renin inhibitors', 'ACEI', 'ARB', 'BB', 'CCB', 'Hydralazine', 'Methydopa']
 
     # Medication annotation
     annotation_batch_size = 64
