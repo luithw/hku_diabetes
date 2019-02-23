@@ -142,19 +142,12 @@ class Analyser:
         evaluate_eGFR(data)
         patient_ids = data['Creatinine'].index.unique().sort_values()
         print("patient_ids after intersecting: %i" %len(patient_ids))
-        if self.config is TestConfig:
-            patient_ids = patient_ids[:self.config.test_samples]
-            subject_data = []
-            for i, patient_id in enumerate(patient_ids):
-                subject_data.append(analyse_subject(data, patient_id, self.config))
-                if subject_data[-1]:
-                    print("Processing subject %i, prescriptions: %i" % (i, len(subject_data[-1]['prescriptions'])))
-        else:
-            with ProcessPoolExecutor() as executor:
-                subject_data = executor.map(analyse_subject,
-                                                    itertools.repeat(data),
-                                                    patient_ids,
-                                                    itertools.repeat(self.config))
+        patient_ids = patient_ids[:self.config.test_samples]
+        subject_data = []
+        for i, patient_id in enumerate(patient_ids):
+            subject_data.append(analyse_subject(data, patient_id, self.config))
+            if subject_data[-1]:
+                print("Processing subject %i, prescriptions: %i" % (i, len(subject_data[-1]['prescriptions'])))
         self.subject_data = [x for x in subject_data if x is not None]
         self.patient_ids = [x['patient_id'] for x in self.subject_data]
         self.results['regression'] = pd.DataFrame(
