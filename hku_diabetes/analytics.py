@@ -7,11 +7,11 @@ from __future__ import print_function
 
 import datetime
 import decimal
-import itertools
 import multiprocessing
 import os
 import pickle
 import time
+import traceback
 from collections import OrderedDict
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures import ThreadPoolExecutor
@@ -55,14 +55,16 @@ class Analyser:
         self.patient_ids = []
         self.subject_data = {}
         self.results = {'regression': pd.DataFrame(), 'ckd': pd.DataFrame()}
+        if not os.path.exists(self.config.results_path):
+            os.makedirs(self.config.results_path)
+        if not os.path.exists(self.config.plot_path):
+            os.makedirs(self.config.plot_path)
 
     def _save(self):
         """Save analytics results to file.
 
         This should only be called by the run method.
         """
-        if not os.path.exists(self.config.results_path):
-            os.makedirs(self.config.results_path)
         with open('%s/analyser_data.pickle' % self.config.results_path,
                   'wb') as file:
             pickle.dump([self.subject_data, self.available_drug_categories], file, pickle.HIGHEST_PROTOCOL)
@@ -254,28 +256,31 @@ def group_profile(subjects, target_drug, time, group_name, config):
 
 
 def analyse_group(subjects, target, exclude=None, low_init_eGFR=True, config=DefaultConfig()):
-    selected = []
-    for subject in subjects:
-        need_include = target in subject['prescriptions']['category'].tolist()
-        if need_include:
-            target_prescription = subject['prescriptions'][subject['prescriptions']['category'] == target]
-            if exclude is not None:
-                need_exclude = np.any(target_prescription['concurrent %s' % exclude])
-            else:
-                need_exclude = False
-            if not low_init_eGFR:
-                init = subject['Creatinine'].iloc[0]
-                if init['eGFR'] <= 45 and init['Datetime'] < target_prescription['start'].iloc[0]:
-                    need_exclude = True
-        if need_include and not need_exclude:
-            selected.append(subject)
-    group_name = '%s_exclude_%s_low_init_eGFR_%s' % (target, exclude, low_init_eGFR)
-    print("%s selected subjects: %i" % (group_name, len(selected)))
-    start_profile = group_profile(selected, target, time='init', group_name='init_%s' % group_name, config=config)
-    end_profile = group_profile(selected, target, time='final', group_name='final_%s' % group_name, config=config)
-    survival_analysis(end_profile, group_name='%s_exclude_%s_low_init_eGFR_%s' % (target, exclude, low_init_eGFR),
-                      config=config)
-    return
+    try:
+        selected = []
+        for subject in subjects:
+            need_include = target in subject['prescriptions']['category'].tolist()
+            if need_include:
+                target_prescription = subject['prescriptions'][subject['prescriptions']['category'] == target]
+                if exclude is not None:
+                    need_exclude = np.any(target_prescription['concurrent %s' % exclude])
+                else:
+                    need_exclude = False
+                if not low_init_eGFR:
+                    init = subject['Creatinine'].iloc[0]
+                    if init['eGFR'] <= 45 and init['Datetime'] < target_prescription['start'].iloc[0]:
+                        need_exclude = True
+            if need_include and not need_exclude:
+                selected.append(subject)
+        group_name = '%s_exclude_%s_low_init_eGFR_%s' % (target, exclude, low_init_eGFR)
+        print("%s selected subjects: %i" % (group_name, len(selected)))
+        start_profile = group_profile(selected, target, time='init', group_name='init_%s' % group_name, config=config)
+        end_profile = group_profile(selected, target, time='final', group_name='final_%s' % group_name, config=config)
+        survival_analysis(end_profile, group_name='%s_exclude_%s_low_init_eGFR_%s' % (target, exclude, low_init_eGFR),
+                          config=config)
+    except Exception as err:
+        print(err)
+        traceback.print_exc()
 
 
 def survival_analysis(profiles, group_name, config):
@@ -290,7 +295,6 @@ def survival_analysis(profiles, group_name, config):
         combine_dates.append(profiles['%s_date' % event])
     combine_dates = pd.concat(combine_dates, axis=1)
     event_dates['death_MI_HF_sroke'] = combine_dates.min(axis=1)
-
     for event, event_date in event_dates.items():
         T, E = lifelines.utils.datetimes_to_durations(profiles['prescription_start'], event_date)
         kmf = lifelines.KaplanMeierFitter()
