@@ -117,6 +117,27 @@ def annotate_records(config=RunConfig):
     return medication
 
 
+def create_compact_medication_list(config=RunConfig):
+    """Take the annotation table and annotate the medication records.
+    """
+    tic = time.time()
+    annotated = pd.read_excel(os.path.join(config.raw_data_path, "edited",
+                                           "annotated_medication.xlsx"))
+    unannotated_medication = pd.read_excel(os.path.join(config.raw_data_path, "edited",
+                                           "unannotated_medication.xlsx"))
+    need_inspection_medication = pd.read_excel(os.path.join(config.raw_data_path, "edited",
+                                           "need_inspection_medication.xlsx"))
+    unannotated_medication = unannotated_medication.loc[unannotated_medication['Edited']==1]
+    all_annotations = pd.concat([annotated, unannotated_medication, need_inspection_medication])
+    category_set = _get_category_set(all_annotations)
+    medication = import_resource('Medication', config=config)
+    for category in category_set:
+        medication.drop(columns=category, inplace=True)
+    medication.to_csv(os.path.join(config.processed_data_path, 'Medication_compact.csv'))
+    print('Finished all medication annotations, time passed: %is' %(time.time() - tic))
+    return medication
+
+
 def make_annotation_table(config=RunConfig):
     """Automatically annotate medication entries with the generic name and durg category based 
     on the trade name, and saves the unique entries as excel.
