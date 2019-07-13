@@ -51,7 +51,7 @@ class DefaultConfig:
         'MI': [410, 411.1, 411.89],
         'stroke': [433, 434, 435, 436, 430, 431, 432, 852, 853],
         'ischemic stroke': [433, 434, 435, 436],
-        'hemorrhagic stroke': [430, 431, 432, 852, 853],
+        'hemorrhagic stroke': [430, 431, 432, 851, 852, 853],
         'HF': [398.91, 428],
         'HT': [401, 405],
         'IHD': [410, 411, 412, 414.0, 414.8, 414.9],
@@ -61,7 +61,7 @@ class DefaultConfig:
         'DM': [249, 250],
         'DKA': [250.1],
         'UTI': [599.0],
-        'dialysis': ['V45.1', 'V56.0', 'V56.8', 39.95, 54.98],
+        'dialysis': ['V45.1', 'V56.0', 'V56.8', 39.95, 54.98, 'E879.1'],
     }
     """The ICD9 diagnosis code of different diagnosis. https://en.wikipedia.org/wiki/List_of_ICD-9_codes_390–459"""
 

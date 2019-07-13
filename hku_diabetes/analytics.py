@@ -455,17 +455,20 @@ def convert_code(items, code_key, date_key, mapping):
     """Convert all procedure or convert_code code to general categories"""
     if items[code_key].dtype == 'O':
       has_E = items[code_key].str.contains('E', regex=False)   # Some diagnosis or procedure code is not numeric
-      items = items[has_E == False]
       has_V = items[code_key].str.contains('V', regex=False)   # Some diagnosis or procedure code is not numeric
-      items['code'] = pd.to_numeric(items[code_key].str.strip('V'))
+      items['code'] = pd.to_numeric(items[code_key].str.strip('V').str.strip('E'))
     else:
       items['code'] = items[code_key]
     decoded_items = []
     for name, item_codes in mapping.items():
         for code in item_codes:
             if type(code) is str:
-                code = float(code.strip('V'))
-                candidates = items[has_V]
+                if 'V' in code:
+                    code = float(code.strip('V'))
+                    candidates = items[has_V]
+                elif 'E' in code:
+                    code = float(code.strip('E'))
+                    candidates = items[has_E]
             else:
                 if items[code_key].dtype == 'O':
                     candidates = items[has_V == False]
