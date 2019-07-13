@@ -197,6 +197,8 @@ def get_target_value(resource, prescription, time):
 
 
 def group_profile(subjects, target_drug, time, group_name, config):
+    group_dir = os.path.join(config.results_path, group_name)
+    os.mkdir(group_dir)
     profiles = []
     for subject in subjects:
         target_prescriptions = subject['prescriptions'][subject['prescriptions']['category'] == target_drug]
@@ -205,6 +207,10 @@ def group_profile(subjects, target_drug, time, group_name, config):
                 target_Creatinine = get_target_value(subject['Creatinine'], target_prescription, time)
                 target_Hba1C = get_target_value(subject['Hba1C'], target_prescription, time)
                 target_LDL = get_target_value(subject['LDL'], target_prescription, time)
+                Creatine_after_drug_use = subject['Creatinine'][subject['Creatinine']['Datetime'] > target_prescription['start']]
+                hba1C_after_durg_use = subject['Hba1C'][subject['Hba1C']['Datetime'] > target_prescription['start']]
+                Creatine_after_drug_use.to_csv(os.path.join(group_dir, "%s_eGFR.csv" % subject['patient_id']))
+                hba1C_after_durg_use.to_csv(os.path.join(group_dir, "%s_hba1C.csv" % subject['patient_id']))
             except ValueError:
                 continue
             else:
@@ -247,6 +253,30 @@ def group_profile(subjects, target_drug, time, group_name, config):
                         profile['%s_date' % diagnosis] = datetime.datetime.today() + datetime.timedelta(days=1)
                 for category in config.available_drug_categories:
                     profile[category] = int(category in other_prescritions['name'].tolist())
+                # Evaluate the time of eGFR falling to certain values
+                percentage_change_eGFR = (Creatine_after_drug_use['eGFR'] - Creatine_after_drug_use['eGFR'].iloc[0]) / Creatine_after_drug_use['eGFR'].iloc[0]
+                for threshold in [-0.1, -0.2, -0.3, -0.4, -0.5]:
+                    eGFR_below_threshold = Creatine_after_drug_use[percentage_change_eGFR < threshold]['Datetime']
+                    if len(eGFR_below_threshold):
+                        date_of_first_change = eGFR_below_threshold.iloc[0]
+                        date_delta = date_of_first_change - Creatine_after_drug_use['Datetime'].iloc[0]
+                        profile['time_of_egfr_drop_to_%i%%_of_initial' % (-threshold*100)] = date_delta
+                    else:
+                        profile['time_of_egfr_drop_to_%i%%_of_initial' % (-threshold * 100)] = None
+                for threshold in [90, 60, 45, 30]:
+                    eGFR_below_threshold = Creatine_after_drug_use[Creatine_after_drug_use < threshold]['Datetime']
+                    if len(eGFR_below_threshold):
+                        date_of_first_change = eGFR_below_threshold.iloc[0]
+                        date_delta = date_of_first_change - Creatine_after_drug_use['Datetime'].iloc[0]
+                        profile['time_of_egfr_drop_below_%i' % threshold] = date_delta
+                    else:
+                        profile['time_of_egfr_drop_below_%i' % threshold] = None
+                diagnosed_dialysis = target_diagnosis[target_diagnosis['name'] == 'dialysis']
+                if len(diagnosed_dialysis):
+                    import pdb; pdb.set_trace()
+                    profile['time_to_dialysis'] = diagnosed_dialysis['date'].iloc[0] - Creatine_after_drug_use['Datetime'].iloc[0]
+                else:
+                    profile['time_to_dialysis'] = None
                 profiles.append(profile)
     profiles = pd.concat(profiles)
     profile_summary = profiles.describe()
