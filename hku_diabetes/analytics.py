@@ -266,6 +266,11 @@ def analyse_group(subjects, target, exclude=None, low_init_eGFR=True, config=Def
                     need_exclude = np.any(target_prescription['concurrent %s' % exclude])
                 else:
                     need_exclude = False
+                # Also exclude all patients already on dialysis
+                existing_diagnosis = subject['diagnosis'][subject['diagnosis']['date'] < target_prescription['start'].values[0]]
+                need_exclude = np.any(existing_diagnosis['name'] == "dialysis")
+                if np.any(existing_diagnosis['name'] == "dialysis"):
+                    print("Excluding subject with existing dialysis")
                 if not low_init_eGFR:
                     init = subject['Creatinine'].iloc[0]
                     if init['eGFR'] <= 45 and init['Datetime'] < target_prescription['start'].iloc[0]:
@@ -355,9 +360,9 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
     for _, prescription in prescriptions.iterrows():
         if prescription['category'] in config.diabetic_drugs:
             diagnosis = diagnosis.append({'name':'diabetic_drugs', 'date':prescription['start']}, ignore_index=True)
-    if 'dialysis' in diagnosis['name'].tolist() or 'dialysis' in procedure['name'].tolist():
-        # Exclude patients on dialysis, as their creatinine does not represent intrinsic eGFR.
-        return None
+    # if 'dialysis' in diagnosis['name'].tolist() or 'dialysis' in procedure['name'].tolist():
+    #     # Exclude patients on dialysis, as their creatinine does not represent intrinsic eGFR.
+    #     return None
 
     if len(Creatinine) < config.min_analysis_samples or len(
             Hba1C) < config.min_analysis_samples:
