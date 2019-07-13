@@ -488,6 +488,7 @@ def find_time_range(Creatinine_time: np.ndarray,
 
 def convert_code(items, code_key, date_key, mapping):
     """Convert all procedure or convert_code code to general categories"""
+    items.dropna(inplace=True)
     if items[code_key].dtype == 'O':
       has_E = items[code_key].str.contains('E', regex=False)   # Some diagnosis or procedure code is not numeric
       has_V = items[code_key].str.contains('V', regex=False)   # Some diagnosis or procedure code is not numeric
@@ -506,7 +507,7 @@ def convert_code(items, code_key, date_key, mapping):
                     candidates = items[has_E]
             else:
                 if items[code_key].dtype == 'O':
-                    candidates = items[has_V == False]
+                    candidates = items[np.logical_and(has_V == False, has_E == False)]
                 else:
                     candidates = items
             decimal_point = -1 * decimal.Decimal(str(code)).as_tuple().exponent
