@@ -164,12 +164,14 @@ class Analyser:
 
     def group_analysis(self):
         self.config.available_drug_categories = self.available_drug_categories
-        if self.config is TestConfig:
-            Executor = ThreadPoolExecutor
-            max_workers = 1
-        else:
-            Executor = ProcessPoolExecutor
-            max_workers = multiprocessing.cpu_count()
+        # if self.config is TestConfig:
+        #     Executor = ThreadPoolExecutor
+        #     max_workers = 1
+        # else:
+        #     Executor = ProcessPoolExecutor
+        #     max_workers = multiprocessing.cpu_count()
+        Executor = ThreadPoolExecutor
+        max_workers = 1
         with Executor(max_workers=max_workers) as executor:
             executor.submit(analyse_group, self.subject_data, target='SGLT2i', config=self.config)
             executor.submit(analyse_group, self.subject_data, target='DDP4i', config=self.config)
@@ -197,8 +199,6 @@ def get_target_value(resource, prescription, time):
 
 
 def group_profile(subjects, target_drug, time, group_name, config):
-    group_dir = os.path.join(config.results_path, group_name)
-    os.mkdir(group_dir)
     profiles = []
     for subject in subjects:
         target_prescriptions = subject['prescriptions'][subject['prescriptions']['category'] == target_drug]
@@ -207,10 +207,6 @@ def group_profile(subjects, target_drug, time, group_name, config):
                 target_Creatinine = get_target_value(subject['Creatinine'], target_prescription, time)
                 target_Hba1C = get_target_value(subject['Hba1C'], target_prescription, time)
                 target_LDL = get_target_value(subject['LDL'], target_prescription, time)
-                Creatine_after_drug_use = subject['Creatinine'][subject['Creatinine']['Datetime'] > target_prescription['start']]
-                hba1C_after_durg_use = subject['Hba1C'][subject['Hba1C']['Datetime'] > target_prescription['start']]
-                Creatine_after_drug_use.to_csv(os.path.join(group_dir, "%s_eGFR.csv" % subject['patient_id']))
-                hba1C_after_durg_use.to_csv(os.path.join(group_dir, "%s_hba1C.csv" % subject['patient_id']))
             except ValueError:
                 continue
             else:
@@ -231,14 +227,16 @@ def group_profile(subjects, target_drug, time, group_name, config):
                     target_diagnosis = subject['dia_pro'][
                         subject['dia_pro']['date'] < target_prescription['start']]
                     other_prescritions = subject['prescriptions'][
-                        subject['prescriptions']['start'] < target_prescription['start']]
+                                            np.logical_and(subject['prescriptions']['start'] < target_prescription['start'],
+                                                           target_prescription['start'] < subject['prescriptions']['end'])]
                 if time == "final":
                     # We are interested in the diagnosis after the drug measurement started
                     target_diagnosis = subject['dia_pro'][np.logical_and(
                         subject['dia_pro']['date'] > target_prescription['start'] + datetime.timedelta(days=30),
                         subject['dia_pro']['date'] < target_prescription['end'])]
                     other_prescritions = subject['prescriptions'][
-                        subject['prescriptions']['start'] > target_prescription['start']]
+                                            np.logical_and(subject['prescriptions']['start'] < target_prescription['end'],
+                                                           target_prescription['end'] < subject['prescriptions']['end'])]
                 all_events = set(
                     ['diabetic_drugs'] + list(config.diagnosis_code.keys()) + list(config.procedure_code.keys()))
                 duration_years = profile['prescription_duration'].iloc[0].days / 365
@@ -252,31 +250,7 @@ def group_profile(subjects, target_drug, time, group_name, config):
                     else:
                         profile['%s_date' % diagnosis] = datetime.datetime.today() + datetime.timedelta(days=1)
                 for category in config.available_drug_categories:
-                    profile[category] = int(category in other_prescritions['name'].tolist())
-                # Evaluate the time of eGFR falling to certain values
-                percentage_change_eGFR = (Creatine_after_drug_use['eGFR'] - Creatine_after_drug_use['eGFR'].iloc[0]) / Creatine_after_drug_use['eGFR'].iloc[0]
-                for threshold in [-0.1, -0.2, -0.3, -0.4, -0.5]:
-                    eGFR_below_threshold = Creatine_after_drug_use[percentage_change_eGFR < threshold]['Datetime']
-                    if len(eGFR_below_threshold):
-                        date_of_first_change = eGFR_below_threshold.iloc[0]
-                        date_delta = date_of_first_change - Creatine_after_drug_use['Datetime'].iloc[0]
-                        profile['time_of_egfr_drop_to_%i%%_of_initial' % (-threshold*100)] = date_delta
-                    else:
-                        profile['time_of_egfr_drop_to_%i%%_of_initial' % (-threshold * 100)] = None
-                for threshold in [90, 60, 45, 30]:
-                    eGFR_below_threshold = Creatine_after_drug_use[Creatine_after_drug_use < threshold]['Datetime']
-                    if len(eGFR_below_threshold):
-                        date_of_first_change = eGFR_below_threshold.iloc[0]
-                        date_delta = date_of_first_change - Creatine_after_drug_use['Datetime'].iloc[0]
-                        profile['time_of_egfr_drop_below_%i' % threshold] = date_delta
-                    else:
-                        profile['time_of_egfr_drop_below_%i' % threshold] = None
-                diagnosed_dialysis = target_diagnosis[target_diagnosis['name'] == 'dialysis']
-                if len(diagnosed_dialysis):
-                    import pdb; pdb.set_trace()
-                    profile['time_to_dialysis'] = diagnosed_dialysis['date'].iloc[0] - Creatine_after_drug_use['Datetime'].iloc[0]
-                else:
-                    profile['time_to_dialysis'] = None
+                    profile[category] = int(category in other_prescritions['category'].tolist())
                 profiles.append(profile)
     profiles = pd.concat(profiles)
     profile_summary = profiles.describe()
@@ -296,11 +270,6 @@ def analyse_group(subjects, target, exclude=None, low_init_eGFR=True, config=Def
                     need_exclude = np.any(target_prescription['concurrent %s' % exclude])
                 else:
                     need_exclude = False
-                # Also exclude all patients already on dialysis
-                existing_diagnosis = subject['diagnosis'][subject['diagnosis']['date'] < target_prescription['start'].values[0]]
-                need_exclude = np.any(existing_diagnosis['name'] == "dialysis")
-                if np.any(existing_diagnosis['name'] == "dialysis"):
-                    print("Excluding subject with existing dialysis")
                 if not low_init_eGFR:
                     init = subject['Creatinine'].iloc[0]
                     if init['eGFR'] <= 45 and init['Datetime'] < target_prescription['start'].iloc[0]:
@@ -390,9 +359,9 @@ def analyse_subject(data: Dict[str, pd.DataFrame],
     for _, prescription in prescriptions.iterrows():
         if prescription['category'] in config.diabetic_drugs:
             diagnosis = diagnosis.append({'name':'diabetic_drugs', 'date':prescription['start']}, ignore_index=True)
-    # if 'dialysis' in diagnosis['name'].tolist() or 'dialysis' in procedure['name'].tolist():
-    #     # Exclude patients on dialysis, as their creatinine does not represent intrinsic eGFR.
-    #     return None
+    if 'dialysis' in diagnosis['name'].tolist() or 'dialysis' in procedure['name'].tolist():
+        # Exclude patients on dialysis, as their creatinine does not represent intrinsic eGFR.
+        return None
 
     if len(Creatinine) < config.min_analysis_samples or len(
             Hba1C) < config.min_analysis_samples:
@@ -488,26 +457,22 @@ def find_time_range(Creatinine_time: np.ndarray,
 
 def convert_code(items, code_key, date_key, mapping):
     """Convert all procedure or convert_code code to general categories"""
-    items.dropna(inplace=True)
     if items[code_key].dtype == 'O':
       has_E = items[code_key].str.contains('E', regex=False)   # Some diagnosis or procedure code is not numeric
+      items = items[has_E == False]
       has_V = items[code_key].str.contains('V', regex=False)   # Some diagnosis or procedure code is not numeric
-      items['code'] = pd.to_numeric(items[code_key].str.strip('V').str.strip('E'))
+      items['code'] = pd.to_numeric(items[code_key].str.strip('V'))
     else:
       items['code'] = items[code_key]
     decoded_items = []
     for name, item_codes in mapping.items():
         for code in item_codes:
             if type(code) is str:
-                if 'V' in code:
-                    code = float(code.strip('V'))
-                    candidates = items[has_V]
-                elif 'E' in code:
-                    code = float(code.strip('E'))
-                    candidates = items[has_E]
+                code = float(code.strip('V'))
+                candidates = items[has_V]
             else:
                 if items[code_key].dtype == 'O':
-                    candidates = items[np.logical_and(has_V == False, has_E == False)]
+                    candidates = items[has_V == False]
                 else:
                     candidates = items
             decimal_point = -1 * decimal.Decimal(str(code)).as_tuple().exponent
